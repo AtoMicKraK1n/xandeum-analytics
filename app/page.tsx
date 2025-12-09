@@ -1,25 +1,6 @@
 import Link from "next/link";
-
-function getNodeStatus(lastSeenTimestamp: number) {
-  const now = Date.now() / 1000;
-  const diff = now - lastSeenTimestamp;
-
-  if (diff < 300)
-    return { status: "online", color: "bg-green-500", text: "Online" }; // < 5 min
-  if (diff < 3600)
-    return { status: "recent", color: "bg-yellow-500", text: "Recent" }; // < 1 hour
-  return { status: "offline", color: "bg-gray-500", text: "Offline" }; // > 1 hour
-}
-
-function formatTimeAgo(timestamp: number) {
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return `${Math.floor(diff)}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
+import { AutoRefresh } from "@/components/AutoRefresh";
+import { PNodesTable } from "@/components/PNodesTable";
 
 async function getNetworkStats() {
   const res = await fetch("http://localhost:3000/api/pnodes/network-stats", {
@@ -48,15 +29,27 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <AutoRefresh interval={60000} />
+
       {/* Header */}
       <header className="border-b border-gray-700 bg-gray-900/50 backdrop-blur">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-white">
-            Xandeum pNode Analytics
-          </h1>
-          <p className="text-gray-400 mt-1">
-            Real-time monitoring of the Xandeum storage network
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white">
+                Xandeum pNode Analytics
+              </h1>
+              <p className="text-gray-400 mt-1">
+                Real-time monitoring of the Xandeum storage network
+              </p>
+            </div>
+            <Link
+              href="/map"
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all hover:scale-105"
+            >
+              🗺️ <span>Network Map</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -83,6 +76,26 @@ export default async function Home() {
           />
         </div>
 
+        {/* Quick Actions Banner */}
+        <div className="bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg p-6 mb-8 border border-blue-700/50">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-1">
+                Explore the Network
+              </h3>
+              <p className="text-gray-300 text-sm">
+                Visualize {stats?.total || 0} pNodes across the globe
+              </p>
+            </div>
+            <Link
+              href="/map"
+              className="px-8 py-3 bg-white text-gray-900 font-bold rounded-lg hover:bg-gray-100 transition-all hover:scale-105 flex items-center gap-2"
+            >
+              🌍 View Interactive Map
+            </Link>
+          </div>
+        </div>
+
         {/* Version Distribution */}
         {stats?.versions && (
           <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
@@ -102,86 +115,8 @@ export default async function Home() {
           </div>
         )}
 
-        {/* pNodes Table */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-xl font-semibold text-white">
-              All pNodes ({pnodes.length})
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-900">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Address
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Version
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Pubkey
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Last Seen
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-700">
-                {pnodes.map((pnode: any) => {
-                  const nodeStatus = getNodeStatus(pnode.last_seen_timestamp);
-                  return (
-                    <tr key={pnode.address} className="hover:bg-gray-750">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${nodeStatus.color}`}
-                          />
-                          <span className="text-xs text-gray-400">
-                            {nodeStatus.text}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-400">
-                        {pnode.address}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                        <span className="px-2 py-1 bg-gray-700 rounded text-xs">
-                          {pnode.version}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">
-                        {pnode.pubkey
-                          ? `${pnode.pubkey.slice(0, 8)}...${pnode.pubkey.slice(
-                              -8
-                            )}`
-                          : "N/A"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {formatTimeAgo(pnode.last_seen_timestamp)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <Link
-                          href={`/pnode/${encodeURIComponent(pnode.address)}`}
-                          className="text-blue-400 hover:text-blue-300 transition"
-                        >
-                          View Details →
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* pNodes Table with Filters */}
+        <PNodesTable initialPnodes={pnodes} />
 
         {/* Footer */}
         <div className="mt-8 text-center text-gray-500 text-sm">
