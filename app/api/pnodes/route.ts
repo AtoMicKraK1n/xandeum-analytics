@@ -18,3 +18,5 @@ export async function GET() {
     );
   }
 }
+
+export const revalidate = 30; // Cache for 30 seconds

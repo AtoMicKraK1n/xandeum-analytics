@@ -72,7 +72,7 @@ export default function MapPage() {
     console.log("[MAP] Starting to fetch pNodes...");
 
     // First, fetch the pNode list
-    fetch("/api/pnodes/list")
+    fetch("/api/pnodes")
       .then((res) => res.json())
       .then(async (data) => {
         console.log("[MAP] Received pNodes data:", data);

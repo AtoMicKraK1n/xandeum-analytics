@@ -3,7 +3,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { PNodesTable } from "@/components/PNodesTable";
 
 async function getNetworkStats() {
-  const res = await fetch("http://localhost:3000/api/pnodes/network-stats", {
+  const res = await fetch("http://localhost:3000/api/network/overview", {
     cache: "no-store",
   });
   if (!res.ok) return null;
@@ -11,7 +11,7 @@ async function getNetworkStats() {
 }
 
 async function getPNodeList() {
-  const res = await fetch("http://localhost:3000/api/pnodes/list", {
+  const res = await fetch("http://localhost:3000/api/pnodes", {
     cache: "no-store",
   });
   if (!res.ok) return null;

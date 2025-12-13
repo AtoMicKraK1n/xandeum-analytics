@@ -2,23 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { getNodeHealth, type NodeHealth } from "@/lib/network-analytics";
 
 interface PNode {
   address: string;
   version: string;
   pubkey: string | null;
   last_seen_timestamp: number;
-}
-
-function getNodeStatus(lastSeenTimestamp: number) {
-  const now = Date.now() / 1000;
-  const diff = now - lastSeenTimestamp;
-
-  if (diff < 300)
-    return { status: "online", color: "bg-green-500", text: "Online" };
-  if (diff < 3600)
-    return { status: "recent", color: "bg-yellow-500", text: "Recent" };
-  return { status: "offline", color: "bg-gray-500", text: "Offline" };
 }
 
 function formatTimeAgo(timestamp: number) {
@@ -62,11 +52,11 @@ export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
       filtered = filtered.filter((p) => p.version === versionFilter);
     }
 
-    // Status filter
+    // Status filter (now using 3-state system)
     if (statusFilter !== "all") {
       filtered = filtered.filter((p) => {
-        const status = getNodeStatus(p.last_seen_timestamp).status;
-        return status === statusFilter;
+        const health = getNodeHealth(p.last_seen_timestamp);
+        return health.status === statusFilter;
       });
     }
 
@@ -138,18 +128,20 @@ export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
             </select>
           </div>
 
-          {/* Status Filter */}
+          {/* Status Filter - Updated to 3-state */}
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Status</label>
+            <label className="text-sm text-gray-400 mb-2 block">
+              Health Status
+            </label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
-              <option value="online">Online</option>
-              <option value="recent">Recent</option>
-              <option value="offline">Offline</option>
+              <option value="healthy">🟢 Healthy</option>
+              <option value="degraded">🟡 Degraded</option>
+              <option value="offline">🔴 Offline</option>
             </select>
           </div>
 
@@ -193,7 +185,7 @@ export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
             <thead className="bg-gray-900">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Status
+                  Health
                 </th>
                 <th
                   className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white"
@@ -226,16 +218,14 @@ export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
             </thead>
             <tbody className="divide-y divide-gray-700">
               {filteredAndSortedNodes.map((pnode) => {
-                const nodeStatus = getNodeStatus(pnode.last_seen_timestamp);
+                const health = getNodeHealth(pnode.last_seen_timestamp);
                 return (
                   <tr key={pnode.address} className="hover:bg-gray-750">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <div
-                          className={`w-2 h-2 rounded-full ${nodeStatus.color}`}
-                        />
+                        <span className="text-base">{health.icon}</span>
                         <span className="text-xs text-gray-400">
-                          {nodeStatus.text}
+                          {health.text}
                         </span>
                       </div>
                     </td>
@@ -247,8 +237,13 @@ export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
                         {pnode.version}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-400">
-                      {pnode.pubkey || "N/A"}
+                    <td className="px-6 py-4 text-sm font-mono text-gray-400 max-w-xs truncate">
+                      <span
+                        className="hover:text-white cursor-pointer"
+                        title={pnode.pubkey || "N/A"}
+                      >
+                        {pnode.pubkey || "N/A"}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                       {formatTimeAgo(pnode.last_seen_timestamp)}
