@@ -85,6 +85,12 @@ export default function MapComponent({ pnodes }: { pnodes: PNode[] }) {
       zoom={2}
       className="h-full w-full"
       style={{ background: "#1f2937" }}
+      minZoom={2}
+      maxBounds={[
+        [-90, -180],
+        [90, 180],
+      ]}
+      maxBoundsViscosity={1.0}
     >
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

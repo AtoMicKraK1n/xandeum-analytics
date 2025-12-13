@@ -15,7 +15,7 @@ const MapComponent = dynamic(() => import("../../components/MapComponent"), {
       </div>
     </div>
   ),
-});
+}) as React.ComponentType<{ pnodes: PNodeWithGeo[] }>;
 
 interface PNode {
   address: string;
@@ -39,10 +39,13 @@ async function fetchGeoLocation(ip: string): Promise<{
   country?: string;
 } | null> {
   try {
+    console.log(`[GEO] Fetching location for ${ip}`);
     const response = await fetch(
       `http://ip-api.com/json/${ip}?fields=status,lat,lon,city,country`
     );
     const data = await response.json();
+
+    console.log(`[GEO] Response for ${ip}:`, data);
 
     if (data.status === "success" && data.lat && data.lon) {
       return {
@@ -53,7 +56,7 @@ async function fetchGeoLocation(ip: string): Promise<{
       };
     }
   } catch (error) {
-    console.error(`Failed to get location for ${ip}:`, error);
+    console.error(`[GEO] Failed to get location for ${ip}:`, error);
   }
   return null;
 }
@@ -63,32 +66,69 @@ export default function MapPage() {
   const [loading, setLoading] = useState(true);
   const [geoLoading, setGeoLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [geoProgress, setGeoProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
+    console.log("[MAP] Starting to fetch pNodes...");
+
     // First, fetch the pNode list
     fetch("/api/pnodes/list")
       .then((res) => res.json())
       .then(async (data) => {
+        console.log("[MAP] Received pNodes data:", data);
+
         if (data.success) {
           const nodes = data.data as PNode[];
+          console.log(`[MAP] Got ${nodes.length} pNodes`);
           setPnodes(nodes);
           setLoading(false);
 
           // Then fetch geolocation for each node
           setGeoLoading(true);
-          const nodesWithGeo = await Promise.all(
-            nodes.map(async (node) => {
-              const ip = node.address.split(":")[0];
-              const geo = await fetchGeoLocation(ip);
+          setGeoProgress({ current: 0, total: nodes.length });
 
-              return {
-                ...node,
-                lat: geo?.lat,
-                lng: geo?.lng,
-                city: geo?.city,
-                country: geo?.country,
-              };
-            })
+          const nodesWithGeo: PNodeWithGeo[] = [];
+
+          // Process in batches to avoid rate limiting
+          const batchSize = 10;
+          for (let i = 0; i < nodes.length; i += batchSize) {
+            const batch = nodes.slice(i, i + batchSize);
+            console.log(`[MAP] Processing batch ${i / batchSize + 1}`);
+
+            const batchResults = await Promise.all(
+              batch.map(async (node) => {
+                const ip = node.address.split(":")[0];
+                const geo = await fetchGeoLocation(ip);
+
+                setGeoProgress({
+                  current: i + batch.indexOf(node) + 1,
+                  total: nodes.length,
+                });
+
+                return {
+                  ...node,
+                  lat: geo?.lat,
+                  lng: geo?.lng,
+                  city: geo?.city,
+                  country: geo?.country,
+                };
+              })
+            );
+
+            nodesWithGeo.push(...batchResults);
+
+            // Update state after each batch
+            setPnodes([...nodesWithGeo]);
+
+            // Small delay between batches to avoid rate limiting
+            if (i + batchSize < nodes.length) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+            }
+          }
+
+          console.log(
+            "[MAP] Geolocation complete. Nodes with coords:",
+            nodesWithGeo.filter((n) => n.lat && n.lng).length
           );
 
           setPnodes(nodesWithGeo);
@@ -100,6 +140,7 @@ export default function MapPage() {
         }
       })
       .catch((err) => {
+        console.error("[MAP] Error:", err);
         setError("Network error");
         setLoading(false);
         setGeoLoading(false);
@@ -118,6 +159,8 @@ export default function MapPage() {
       </div>
     );
   }
+
+  const nodesWithCoords = pnodes.filter((n) => n.lat && n.lng);
 
   return (
     <div className="relative h-screen w-full">
@@ -139,8 +182,8 @@ export default function MapPage() {
                 {loading
                   ? "Loading nodes..."
                   : geoLoading
-                  ? `Geolocating ${pnodes.length} nodes...`
-                  : `${pnodes.length} nodes worldwide`}
+                  ? `Geolocating ${geoProgress.current}/${geoProgress.total} nodes...`
+                  : `${nodesWithCoords.length} of ${pnodes.length} nodes mapped`}
               </p>
             </div>
             <div className="flex gap-2">
@@ -163,7 +206,12 @@ export default function MapPage() {
 
       {/* Map */}
       <div className="h-full w-full pt-[100px]">
-        {!loading && <MapComponent pnodes={pnodes} />}
+        {!loading && pnodes.length > 0 && <MapComponent pnodes={pnodes} />}
+        {!loading && pnodes.length === 0 && (
+          <div className="h-full flex items-center justify-center bg-gray-900">
+            <p className="text-white">No pNodes found</p>
+          </div>
+        )}
       </div>
     </div>
   );
