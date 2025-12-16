@@ -1,28 +1,37 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { getNodeHealth } from "@/lib/network-analytics";
 
 async function getPNodeStats(address: string) {
-  try {
-    const res = await fetch(
-      `http://localhost:3000/api/pnodes/${encodeURIComponent(address)}`,
-      { cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    return res.json();
-  } catch (error) {
-    return null;
-  }
+  const res = await fetch(
+    `http://localhost:3000/api/pnodes/${encodeURIComponent(address)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) return null;
+  return res.json();
 }
 
-function formatBytes(bytes: number) {
+async function getGeoLocation(ip: string) {
+  try {
+    const res = await fetch(
+      `http://ip-api.com/json/${ip}?fields=status,country,city,regionName,isp,lat,lon,org`
+    );
+    const data = await res.json();
+    if (data.status === "success") return data;
+  } catch (error) {
+    console.error("Geolocation error:", error);
+  }
+  return null;
+}
+
+function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
 
-function formatUptime(seconds: number) {
+function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -44,202 +53,302 @@ export default async function PNodeDetailPage({
   const decodedAddress = decodeURIComponent(address);
 
   const response = await getPNodeStats(decodedAddress);
+  const stats = response?.data;
 
-  if (!response || !response.success) {
-    // pNode might not have RPC accessible, show limited info
+  if (!stats) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <header className="border-b border-gray-700 bg-gray-900/50 backdrop-blur">
-          <div className="container mx-auto px-4 py-6">
-            <Link
-              href="/"
-              className="text-blue-400 hover:text-blue-300 text-sm mb-2 inline-block"
-            >
-              ← Back to Dashboard
-            </Link>
-            <h1 className="text-3xl font-bold text-white">pNode Details</h1>
-            <p className="text-gray-400 mt-1 font-mono">{decodedAddress}</p>
-          </div>
-        </header>
-
-        <main className="container mx-auto px-4 py-8">
-          <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-yellow-400 mb-2">
-              ⚠️ RPC Not Accessible
-            </h2>
-            <p className="text-gray-300">
-              This pNode's RPC port (6000) is not publicly accessible. The node
-              may be:
-            </p>
-            <ul className="list-disc list-inside text-gray-400 mt-2 space-y-1">
-              <li>Behind a firewall</li>
-              <li>Only allowing localhost connections</li>
-              <li>Temporarily offline</li>
-            </ul>
-            <p className="text-gray-400 mt-4">
-              The node is still visible in the gossip network (port 9001) but
-              detailed stats are unavailable.
-            </p>
-          </div>
-        </main>
+      <div className="min-h-screen bg-cyber-dark flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">
+            pNode Not Found
+          </h1>
+          <Link href="/" className="text-cyber-cyan hover:text-cyber-mint">
+            ← Back to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const stats = response.data;
+  const ip = decodedAddress.split(":")[0];
+  const geoData = await getGeoLocation(ip);
+  const health = getNodeHealth(stats.last_updated);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen bg-cyber-dark">
       {/* Header */}
-      <header className="border-b border-gray-700 bg-gray-900/50 backdrop-blur">
+      <header className="border-b border-cyber-border bg-cyber-card/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-6">
           <Link
             href="/"
-            className="text-blue-400 hover:text-blue-300 text-sm mb-2 inline-block"
+            className="text-cyber-cyan hover:text-cyber-mint text-sm mb-2 inline-block"
           >
             ← Back to Dashboard
           </Link>
-          <h1 className="text-3xl font-bold text-white">pNode Details</h1>
-          <p className="text-gray-400 mt-1 font-mono">{decodedAddress}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Node Details
+              </h1>
+              <div className="flex items-center gap-3">
+                <code className="text-gray-400 text-sm bg-cyber-card px-3 py-1 rounded">
+                  {decodedAddress}
+                </code>
+                <span
+                  className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
+                    health.status === "healthy"
+                      ? "bg-cyber-mint/20 text-cyber-mint"
+                      : health.status === "degraded"
+                      ? "bg-cyber-purple/20 text-cyber-purple"
+                      : "bg-cyber-pink/20 text-cyber-pink"
+                  }`}
+                >
+                  {health.icon} {health.text}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* System Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MetricCard
-            title="CPU Usage"
-            value={`${stats.cpu_percent.toFixed(2)}%`}
-            icon="🔥"
-            color={stats.cpu_percent > 80 ? "text-red-400" : "text-green-400"}
-          />
-          <MetricCard
-            title="RAM Usage"
-            value={`${((stats.ram_used / stats.ram_total) * 100).toFixed(1)}%`}
-            subtitle={`${formatBytes(stats.ram_used)} / ${formatBytes(
-              stats.ram_total
-            )}`}
+        {/* Top Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <StatCard
             icon="💾"
+            label="Storage Used"
+            value={formatBytes(stats.total_bytes)}
+            color="text-cyber-purple"
           />
-          <MetricCard
-            title="Uptime"
-            value={formatUptime(stats.uptime)}
-            icon="⏱️"
-            color="text-blue-400"
+          <StatCard
+            icon="📊"
+            label="Total Pages"
+            value={stats.total_pages.toLocaleString()}
+            color="text-cyber-cyan"
           />
-          <MetricCard
-            title="Active Streams"
+          <StatCard
+            icon="⚡"
+            label="Active Streams"
             value={stats.active_streams.toString()}
-            icon="🌊"
-            color="text-purple-400"
+            color="text-cyber-mint"
+          />
+          <StatCard
+            icon="⏱️"
+            label="Uptime"
+            value={formatUptime(stats.uptime)}
+            color="text-cyber-pink"
           />
         </div>
 
-        {/* Network Activity */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">
-            Network Activity
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Packets Received</p>
-              <p className="text-2xl font-bold text-green-400">
-                {stats.packets_received.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Packets Sent</p>
-              <p className="text-2xl font-bold text-blue-400">
-                {stats.packets_sent.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Storage Information */}
-        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">
-            Storage Information
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">File Size</p>
-              <p className="text-2xl font-bold text-white">
-                {formatBytes(stats.file_size)}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Total Bytes</p>
-              <p className="text-2xl font-bold text-white">
-                {stats.total_bytes.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Total Pages</p>
-              <p className="text-2xl font-bold text-white">
-                {stats.total_pages.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">
-            Additional Information
-          </h2>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b border-gray-700">
-              <span className="text-gray-400">Current Index</span>
-              <span className="text-white font-mono">
-                {stats.current_index}
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Node Information */}
+          <div className="bg-cyber-card/80 backdrop-blur rounded-lg p-6 border border-cyber-border">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                <span className="text-2xl">📡</span>
+                Node Information
+              </h2>
+              <span className="text-xs text-cyber-mint bg-cyber-mint/10 px-2 py-1 rounded">
+                REAL DATA
               </span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-700">
-              <span className="text-gray-400">Last Updated</span>
-              <span className="text-white">
-                {new Date(stats.last_updated * 1000).toLocaleString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-gray-400">RPC Endpoint</span>
-              <span className="text-white font-mono">
-                {decodedAddress.split(":")[0]}:6000/rpc
-              </span>
+
+            <div className="space-y-4">
+              <InfoRow
+                label="Gossip Address"
+                value={decodedAddress}
+                icon="🌐"
+              />
+              <InfoRow label="RPC Address" value={`${ip}:8899`} icon="🔌" />
+              <InfoRow
+                label="Version"
+                value={stats.version || "Unknown"}
+                icon="📦"
+              />
+              <InfoRow
+                label="CPU Usage"
+                value={`${stats.cpu_percent.toFixed(1)}%`}
+                icon="🖥️"
+              />
+              <InfoRow
+                label="RAM Usage"
+                value={`${formatBytes(stats.ram_used)} / ${formatBytes(
+                  stats.ram_total
+                )}`}
+                icon="💾"
+              />
+              <InfoRow
+                label="Packets Received"
+                value={`${stats.packets_received}/s`}
+                icon="📥"
+              />
+              <InfoRow
+                label="Packets Sent"
+                value={`${stats.packets_sent}/s`}
+                icon="📤"
+              />
             </div>
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          Data refreshed on page load
+          {/* Location */}
+          {geoData && (
+            <div className="bg-cyber-card/80 backdrop-blur rounded-lg p-6 border border-cyber-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <span className="text-2xl">🌍</span>
+                  Location
+                </h2>
+                <span className="text-xs text-cyber-cyan bg-cyber-cyan/10 px-2 py-1 rounded">
+                  FROM IP
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                <InfoRow label="Country" value={geoData.country} icon="🌐" />
+                <InfoRow label="City" value={geoData.city} icon="🏙️" />
+                <InfoRow label="Region" value={geoData.regionName} icon="📍" />
+                <InfoRow label="ISP" value={geoData.isp} icon="🔗" />
+                <InfoRow label="Organization" value={geoData.org} icon="🏢" />
+                <InfoRow
+                  label="Coordinates"
+                  value={`${geoData.lat}, ${geoData.lon}`}
+                  icon="📌"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Storage Stats */}
+          <div className="bg-cyber-card/80 backdrop-blur rounded-lg p-6 border border-cyber-border">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="text-2xl">💿</span>
+              Storage Statistics
+            </h2>
+
+            <div className="space-y-6">
+              <div>
+                <div className="flex justify-between text-sm text-gray-400 mb-2">
+                  <span>Storage Utilization</span>
+                  <span>
+                    {((stats.total_bytes / stats.file_size) * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="w-full bg-cyber-dark rounded-full h-3 border border-cyber-border overflow-hidden">
+                  <div
+                    className="h-3 rounded-full bg-gradient-to-r from-cyber-cyan to-cyber-purple transition-all duration-500"
+                    style={{
+                      width: `${Math.min(
+                        (stats.total_bytes / stats.file_size) * 100,
+                        100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-cyber-dark/50 rounded-lg border border-cyber-border">
+                  <div className="text-2xl font-bold text-cyber-cyan">
+                    {formatBytes(stats.total_bytes)}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">Used</div>
+                </div>
+                <div className="text-center p-4 bg-cyber-dark/50 rounded-lg border border-cyber-border">
+                  <div className="text-2xl font-bold text-cyber-purple">
+                    {formatBytes(stats.file_size)}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">Capacity</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Network Activity */}
+          <div className="bg-cyber-card/80 backdrop-blur rounded-lg p-6 border border-cyber-border">
+            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="text-2xl">📶</span>
+              Network Activity
+            </h2>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-cyber-dark/50 rounded-lg border border-cyber-border">
+                  <div className="text-3xl font-bold text-cyber-mint">
+                    {stats.active_streams}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    Active Streams
+                  </div>
+                </div>
+                <div className="text-center p-4 bg-cyber-dark/50 rounded-lg border border-cyber-border">
+                  <div className="text-3xl font-bold text-cyber-cyan">
+                    {stats.packets_received}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">RX/s</div>
+                </div>
+                <div className="text-center p-4 bg-cyber-dark/50 rounded-lg border border-cyber-border">
+                  <div className="text-3xl font-bold text-cyber-purple">
+                    {stats.packets_sent}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">TX/s</div>
+                </div>
+              </div>
+
+              <div className="bg-cyber-dark/50 rounded-lg p-4 border border-cyber-border">
+                <div className="text-sm text-gray-400 mb-2">Last Updated</div>
+                <div className="text-lg font-semibold text-white">
+                  {new Date(stats.last_updated * 1000).toLocaleString()}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
   );
 }
 
-function MetricCard({
-  title,
-  value,
-  subtitle,
+function StatCard({
   icon,
-  color = "text-blue-400",
+  label,
+  value,
+  color,
 }: {
-  title: string;
-  value: string;
-  subtitle?: string;
   icon: string;
-  color?: string;
+  label: string;
+  value: string;
+  color: string;
 }) {
   return (
-    <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-gray-400 text-sm">{title}</p>
-        <span className="text-2xl">{icon}</span>
+    <div className="bg-cyber-card/80 backdrop-blur rounded-lg p-6 border border-cyber-border hover:border-cyber-cyan/30 transition-all">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-gray-400 text-sm">{label}</p>
+          <p className={`text-3xl font-bold ${color} mt-2`}>{value}</p>
+        </div>
+        <div className="text-4xl">{icon}</div>
       </div>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+    </div>
+  );
+}
+
+function InfoRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-cyber-border last:border-0">
+      <span className="text-gray-400 text-sm flex items-center gap-2">
+        <span>{icon}</span>
+        {label}
+      </span>
+      <span className="text-white font-mono text-sm">{value}</span>
     </div>
   );
 }

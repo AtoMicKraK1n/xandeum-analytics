@@ -67,6 +67,7 @@ export function getNodeHealth(
   color: string;
   text: string;
   icon: string;
+  opacity: number; // NEW: for degraded states
 } {
   const currentTime = now || Date.now() / 1000;
   const delta = currentTime - lastSeenTimestamp;
@@ -74,27 +75,29 @@ export function getNodeHealth(
   if (delta < 300) {
     return {
       status: "healthy",
-      color: "bg-green-500",
+      color: "bg-neo-teal",
       text: "Healthy",
-      icon: "🟢",
+      icon: "●",
+      opacity: 1.0, // Full brightness
     };
   }
   if (delta < 3600) {
     return {
       status: "degraded",
-      color: "bg-yellow-500",
+      color: "bg-neo-teal",
       text: "Degraded",
-      icon: "🟡",
+      icon: "●",
+      opacity: 0.5, // 50% opacity
     };
   }
   return {
     status: "offline",
-    color: "bg-red-500",
+    color: "bg-neo-teal",
     text: "Offline",
-    icon: "🔴",
+    icon: "●",
+    opacity: 0.2, // 20% opacity
   };
 }
-
 function parseVersion(version: string): number[] {
   // Handle "unknown" or invalid versions
   if (!version || version === "unknown") return [0, 0, 0];
