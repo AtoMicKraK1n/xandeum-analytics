@@ -2,267 +2,336 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { getNodeHealth, type NodeHealth } from "@/lib/network-analytics";
+import { getNodeHealth } from "@/lib/network-analytics";
 
 interface PNode {
   address: string;
   version: string;
-  pubkey: string | null;
   last_seen_timestamp: number;
+  total_bytes?: number;
+  uptime?: number;
+  cpu_percent?: number;
+  ram_used?: number;
+  ram_total?: number;
 }
 
-function formatTimeAgo(timestamp: number) {
-  const now = Date.now() / 1000;
-  const diff = now - timestamp;
-
-  if (diff < 60) return `${Math.floor(diff)}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+interface PNodesTableProps {
+  initialPnodes: PNode[];
 }
 
-export function PNodesTable({ initialPnodes }: { initialPnodes: PNode[] }) {
+type SortField = "address" | "version" | "last_seen" | "storage" | "uptime";
+type SortOrder = "asc" | "desc";
+
+export function PNodesTable({ initialPnodes }: PNodesTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [versionFilter, setVersionFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"address" | "version" | "lastSeen">(
-    "lastSeen"
-  );
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [healthFilter, setHealthFilter] = useState<
+    "all" | "healthy" | "degraded" | "offline"
+  >("all");
+  const [sortField, setSortField] = useState<SortField>("last_seen");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
-  const versions = useMemo(() => {
-    const versionSet = new Set(initialPnodes.map((p) => p.version));
-    return Array.from(versionSet);
-  }, [initialPnodes]);
-
-  const filteredAndSortedNodes = useMemo(() => {
-    let filtered = initialPnodes;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (p) =>
-          p.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.pubkey?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Version filter
-    if (versionFilter !== "all") {
-      filtered = filtered.filter((p) => p.version === versionFilter);
-    }
-
-    // Status filter (now using 3-state system)
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((p) => {
-        const health = getNodeHealth(p.last_seen_timestamp);
-        return health.status === statusFilter;
-      });
-    }
-
-    // Sort
-    const sorted = [...filtered].sort((a, b) => {
-      let comparison = 0;
-
-      if (sortBy === "address") {
-        comparison = a.address.localeCompare(b.address);
-      } else if (sortBy === "version") {
-        comparison = a.version.localeCompare(b.version);
-      } else if (sortBy === "lastSeen") {
-        comparison = a.last_seen_timestamp - b.last_seen_timestamp;
-      }
-
-      return sortOrder === "asc" ? comparison : -comparison;
-    });
-
-    return sorted;
-  }, [
-    initialPnodes,
-    searchTerm,
-    versionFilter,
-    statusFilter,
-    sortBy,
-    sortOrder,
-  ]);
-
-  const toggleSort = (field: "address" | "version" | "lastSeen") => {
-    if (sortBy === field) {
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortBy(field);
+      setSortField(field);
       setSortOrder("desc");
     }
   };
 
+  const filteredAndSortedPnodes = useMemo(() => {
+    let filtered = initialPnodes.filter((pnode) => {
+      const matchesSearch =
+        pnode.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pnode.version?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (healthFilter === "all") return true;
+
+      const health = getNodeHealth(pnode.last_seen_timestamp);
+      return health.status === healthFilter;
+    });
+
+    filtered.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case "address":
+          aValue = a.address;
+          bValue = b.address;
+          break;
+        case "version":
+          aValue = a.version || "";
+          bValue = b.version || "";
+          break;
+        case "last_seen":
+          aValue = a.last_seen_timestamp;
+          bValue = b.last_seen_timestamp;
+          break;
+        case "storage":
+          aValue = a.total_bytes || 0;
+          bValue = b.total_bytes || 0;
+          break;
+        case "uptime":
+          aValue = a.uptime || 0;
+          bValue = b.uptime || 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [initialPnodes, searchTerm, healthFilter, sortField, sortOrder]);
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes) return "N/A";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+  };
+
+  const formatUptime = (seconds?: number) => {
+    if (!seconds) return "N/A";
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    return `${days}d ${hours}h`;
+  };
+
+  const formatTimestamp = (timestamp: number) => {
+    const now = Date.now() / 1000;
+    const diff = now - timestamp;
+
+    if (diff < 60) return "Just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
+
   return (
-    <>
-      {/* Filters */}
-      <div className="bg-gray-800 rounded-lg p-6 mb-6 border border-gray-700">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="bg-space-card/80 backdrop-blur rounded-lg border border-space-border">
+      {/* Header */}
+      <div className="p-6 border-b border-space-border">
+        <h2 className="text-2xl font-bold text-white mb-4">pNodes Overview</h2>
+
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">Search</label>
+          <div className="flex-1">
             <input
               type="text"
-              placeholder="Address or pubkey..."
+              placeholder="Search by address or version..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-space-dark border border-space-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neo-teal transition-colors"
             />
           </div>
 
-          {/* Version Filter */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">Version</label>
-            <select
-              value={versionFilter}
-              onChange={(e) => setVersionFilter(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Versions</option>
-              {versions.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Status Filter - Updated to 3-state */}
-          <div>
-            <label className="text-sm text-gray-400 mb-2 block">
-              Health Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="healthy">🟢 Healthy</option>
-              <option value="degraded">🟡 Degraded</option>
-              <option value="offline">🔴 Offline</option>
-            </select>
-          </div>
-
-          {/* Clear Filters */}
-          <div className="flex items-end">
+          {/* Health Filter */}
+          <div className="flex gap-2">
             <button
-              onClick={() => {
-                setSearchTerm("");
-                setVersionFilter("all");
-                setStatusFilter("all");
-              }}
-              className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+              onClick={() => setHealthFilter("all")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                healthFilter === "all"
+                  ? "bg-neo-teal text-space-dark"
+                  : "bg-space-dark text-gray-400 border border-space-border hover:border-neo-teal/50"
+              }`}
             >
-              Clear Filters
+              All ({initialPnodes.length})
+            </button>
+            <button
+              onClick={() => setHealthFilter("healthy")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                healthFilter === "healthy"
+                  ? "bg-neo-teal text-space-dark"
+                  : "bg-space-dark text-gray-400 border border-space-border hover:border-neo-teal/50"
+              }`}
+            >
+              <span
+                className="inline-block w-2 h-2 rounded-full bg-neo-teal mr-2"
+                style={{ opacity: 1.0 }}
+              ></span>
+              Healthy
+            </button>
+            <button
+              onClick={() => setHealthFilter("degraded")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                healthFilter === "degraded"
+                  ? "bg-neo-teal text-space-dark"
+                  : "bg-space-dark text-gray-400 border border-space-border hover:border-neo-teal/50"
+              }`}
+            >
+              <span
+                className="inline-block w-2 h-2 rounded-full bg-neo-teal mr-2"
+                style={{ opacity: 0.5 }}
+              ></span>
+              Degraded
+            </button>
+            <button
+              onClick={() => setHealthFilter("offline")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                healthFilter === "offline"
+                  ? "bg-neo-teal text-space-dark"
+                  : "bg-space-dark text-gray-400 border border-space-border hover:border-neo-teal/50"
+              }`}
+            >
+              <span
+                className="inline-block w-2 h-2 rounded-full bg-neo-teal mr-2"
+                style={{ opacity: 0.2 }}
+              ></span>
+              Offline
             </button>
           </div>
-        </div>
-
-        {/* Results count */}
-        <div className="mt-4 text-sm text-gray-400">
-          Showing {filteredAndSortedNodes.length} of {initialPnodes.length}{" "}
-          pNodes
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-700 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">pNodes Table</h2>
-          <Link
-            href="/map"
-            className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
-          >
-            <span>View on map</span>
-            <span>→</span>
-          </Link>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Health
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white"
-                  onClick={() => toggleSort("address")}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-space-dark/50 border-b border-space-border">
+            <tr>
+              <th className="px-6 py-4 text-left">
+                <button
+                  onClick={() => handleSort("address")}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
                 >
-                  Address{" "}
-                  {sortBy === "address" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white"
-                  onClick={() => toggleSort("version")}
+                  Status & Address
+                  {sortField === "address" && (
+                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 text-left">
+                <button
+                  onClick={() => handleSort("version")}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
                 >
-                  Version{" "}
-                  {sortBy === "version" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Pubkey
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:text-white"
-                  onClick={() => toggleSort("lastSeen")}
+                  Version
+                  {sortField === "version" && (
+                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 text-left">
+                <button
+                  onClick={() => handleSort("last_seen")}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
                 >
-                  Last Seen{" "}
-                  {sortBy === "lastSeen" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {filteredAndSortedNodes.map((pnode) => {
-                const health = getNodeHealth(pnode.last_seen_timestamp);
-                return (
-                  <tr key={pnode.address} className="hover:bg-gray-750">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">{health.icon}</span>
-                        <span className="text-xs text-gray-400">
+                  Last Seen
+                  {sortField === "last_seen" && (
+                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 text-left">
+                <button
+                  onClick={() => handleSort("storage")}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
+                >
+                  Storage
+                  {sortField === "storage" && (
+                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 text-left">
+                <button
+                  onClick={() => handleSort("uptime")}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
+                >
+                  Uptime
+                  {sortField === "uptime" && (
+                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </button>
+              </th>
+              <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-space-border">
+            {filteredAndSortedPnodes.map((pnode) => {
+              const health = getNodeHealth(pnode.last_seen_timestamp);
+              return (
+                <tr
+                  key={pnode.address}
+                  className="hover:bg-space-dark/30 transition-colors"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-3 h-3 rounded-full bg-neo-teal"
+                        style={{ opacity: health.opacity }}
+                        title={health.text}
+                      />
+                      <div>
+                        <div className="text-sm font-mono text-white">
+                          {pnode.address}
+                        </div>
+                        <div className="text-xs text-gray-500">
                           {health.text}
-                        </span>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-400">
-                      {pnode.address}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      <span className="px-2 py-1 bg-gray-700 rounded text-xs">
-                        {pnode.version}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-mono text-gray-400 max-w-xs truncate">
-                      <span
-                        className="hover:text-white cursor-pointer"
-                        title={pnode.pubkey || "N/A"}
-                      >
-                        {pnode.pubkey || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                      {formatTimeAgo(pnode.last_seen_timestamp)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <Link
-                        href={`/pnode/${encodeURIComponent(pnode.address)}`}
-                        className="text-blue-400 hover:text-blue-300 transition"
-                      >
-                        View Details →
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-300 font-mono">
+                      {pnode.version || "Unknown"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-400">
+                      {formatTimestamp(pnode.last_seen_timestamp)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-neo-teal font-semibold">
+                      {formatBytes(pnode.total_bytes)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="text-sm text-gray-400">
+                      {formatUptime(pnode.uptime)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <Link
+                      href={`/pnode/${encodeURIComponent(pnode.address)}`}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-neo-teal/10 border border-neo-teal/30 text-neo-teal rounded-lg hover:bg-neo-teal/20 hover:border-neo-teal transition-all text-sm font-medium"
+                    >
+                      View Details →
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {filteredAndSortedPnodes.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-sm">
+              No pNodes found matching your criteria
+            </p>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-space-border bg-space-dark/30">
+        <p className="text-sm text-gray-500 text-center">
+          Showing {filteredAndSortedPnodes.length} of {initialPnodes.length}{" "}
+          pNodes
+        </p>
+      </div>
+    </div>
   );
 }

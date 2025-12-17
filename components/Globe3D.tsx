@@ -313,13 +313,16 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         });
 
         // Draw node markers with BLINKING effect
+        // Draw node markers with BLINKING effect
         animationTime += 0.05;
         nodeMarkers.forEach((marker, index) => {
           const projected = projection([marker.lng, marker.lat]);
           if (projected) {
             // Calculate blinking opacity
             const blinkSpeed = 1 + Math.sin(index * 0.5) * 0.5;
-            const opacity = 0.5 + Math.sin(animationTime * blinkSpeed) * 0.5;
+            const baseOpacity = marker.opacity; // Use marker's base opacity
+            const blinkingOpacity =
+              baseOpacity * (0.5 + Math.sin(animationTime * blinkSpeed) * 0.5);
 
             // Draw outer glow
             context.beginPath();
@@ -331,7 +334,7 @@ export function Globe3D({ pnodes }: Globe3DProps) {
               2 * Math.PI
             );
             context.fillStyle = marker.color;
-            context.globalAlpha = opacity * 0.3;
+            context.globalAlpha = blinkingOpacity * 0.3;
             context.fill();
 
             // Draw middle glow
@@ -343,10 +346,10 @@ export function Globe3D({ pnodes }: Globe3DProps) {
               0,
               2 * Math.PI
             );
-            context.globalAlpha = opacity * 0.5;
+            context.globalAlpha = blinkingOpacity * 0.5;
             context.fill();
 
-            // Draw main marker (brighter)
+            // Draw main marker
             context.beginPath();
             context.arc(
               projected[0],
@@ -356,10 +359,9 @@ export function Globe3D({ pnodes }: Globe3DProps) {
               2 * Math.PI
             );
             context.fillStyle = marker.color;
-            context.globalAlpha = 1;
+            context.globalAlpha = baseOpacity;
             context.fill();
 
-            // Reset alpha
             context.globalAlpha = 1;
           }
         });
