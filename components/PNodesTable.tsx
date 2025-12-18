@@ -19,7 +19,7 @@ interface PNodesTableProps {
   initialPnodes: PNode[];
 }
 
-type SortField = "address" | "version" | "last_seen" | "storage" | "uptime";
+type SortField = "address" | "version" | "last_seen";
 type SortOrder = "asc" | "desc";
 
 export function PNodesTable({ initialPnodes }: PNodesTableProps) {
@@ -70,14 +70,6 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
           aValue = a.last_seen_timestamp;
           bValue = b.last_seen_timestamp;
           break;
-        case "storage":
-          aValue = a.total_bytes || 0;
-          bValue = b.total_bytes || 0;
-          break;
-        case "uptime":
-          aValue = a.uptime || 0;
-          bValue = b.uptime || 0;
-          break;
         default:
           return 0;
       }
@@ -89,21 +81,6 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
 
     return filtered;
   }, [initialPnodes, searchTerm, healthFilter, sortField, sortOrder]);
-
-  const formatBytes = (bytes?: number) => {
-    if (!bytes) return "N/A";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB", "TB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
-  };
-
-  const formatUptime = (seconds?: number) => {
-    if (!seconds) return "N/A";
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    return `${days}d ${hours}h`;
-  };
 
   const formatTimestamp = (timestamp: number) => {
     const now = Date.now() / 1000;
@@ -230,28 +207,6 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
                   )}
                 </button>
               </th>
-              <th className="px-6 py-4 text-left">
-                <button
-                  onClick={() => handleSort("storage")}
-                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
-                >
-                  Storage
-                  {sortField === "storage" && (
-                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </button>
-              </th>
-              <th className="px-6 py-4 text-left">
-                <button
-                  onClick={() => handleSort("uptime")}
-                  className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
-                >
-                  Uptime
-                  {sortField === "uptime" && (
-                    <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
-                  )}
-                </button>
-              </th>
               <th className="px-6 py-4 text-center text-sm font-semibold text-gray-300">
                 Actions
               </th>
@@ -290,16 +245,6 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-400">
                       {formatTimestamp(pnode.last_seen_timestamp)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-neo-teal font-semibold">
-                      {formatBytes(pnode.total_bytes)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-400">
-                      {formatUptime(pnode.uptime)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">

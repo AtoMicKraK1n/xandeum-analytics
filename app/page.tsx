@@ -109,9 +109,7 @@ export default async function Home() {
             {/* Node counts - NEW SECTION */}
             <div className="grid grid-cols-4 gap-4 pt-6 border-t border-neo-teal/20">
               <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="text-3xl">🌐</div>
-                </div>
+                <div className="flex items-center justify-center gap-2 mb-2"></div>
                 <div className="text-3xl font-bold text-neo-teal">
                   {stats?.totals?.total || 0}
                 </div>
@@ -174,7 +172,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Version Intelligence Widget */}
+        {/* Version Intelligence Widget
         <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 mb-8 border border-space-border hover:border-neo-teal/30 transition-all">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">
@@ -213,7 +211,7 @@ export default async function Home() {
                 )
               )}
           </div>
-        </div>
+        </div> */}
 
         {/* pNodes Table with Filters */}
         <PNodesTable initialPnodes={pnodes} />

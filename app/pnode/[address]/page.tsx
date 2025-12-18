@@ -1,5 +1,23 @@
 import Link from "next/link";
 import { getNodeHealth } from "@/lib/network-analytics";
+import {
+  Server,
+  ChartColumnBig,
+  Zap,
+  Timer,
+  Monitor,
+  Globe,
+  Plug2,
+  LayersPlus,
+  Cpu,
+  MemoryStick,
+  HardDriveDownload,
+  HardDriveUpload,
+  MapPin,
+  NotebookPen,
+  Network,
+  LaptopMinimalCheck,
+} from "lucide-react";
 
 async function getPNodeStats(address: string) {
   const res = await fetch(
@@ -55,25 +73,153 @@ export default async function PNodeDetailPage({
   const response = await getPNodeStats(decodedAddress);
   const stats = response?.data;
 
+  const ip = decodedAddress.split(":")[0];
+  const port = decodedAddress.split(":")[1] || "9001";
+
+  // If stats not available, show error state
   if (!stats) {
     return (
-      <div className="min-h-screen bg-space-dark flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">
-            pNode Not Found
-          </h1>
-          <Link
-            href="/"
-            className="text-neo-teal hover:text-neo-teal/80 transition-colors"
-          >
-            ← Back to Dashboard
-          </Link>
-        </div>
+      <div className="min-h-screen bg-space-dark flex flex-col">
+        {/* Header */}
+        <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl">
+          <div className="container mx-auto px-4 py-4">
+            <Link
+              href="/"
+              className="text-neo-teal hover:text-neo-teal/80 text-sm mb-2 inline-flex items-center gap-2 transition-colors"
+            >
+              ← Back to Dashboard
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1">
+                Node Details
+              </h1>
+              <code className="text-gray-400 text-xs bg-space-dark px-2 py-1 rounded border border-space-border">
+                {decodedAddress}
+              </code>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center px-4 py-8">
+          <div className="max-w-2xl w-full">
+            <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-neo-teal/30">
+              <div className="text-center mb-4">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="w-16 h-16 rounded-full bg-neo-teal/10 border border-neo-teal/30 flex items-center justify-center">
+                    <Server className="w-8 h-8 text-neo-teal" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-1">
+                  Unable to Fetch Node Details
+                </h2>
+                <p className="text-gray-400 text-sm">
+                  We couldn't retrieve statistics for this pNode
+                </p>
+              </div>
+
+              <div className="bg-space-dark/50 rounded-lg p-4 border border-space-border mb-4">
+                <h3 className="text-base font-semibold text-white mb-3 flex items-center gap-2">
+                  <Plug2 className="w-4 h-4 text-neo-teal" />
+                  Connection Details
+                </h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-400 block mb-1">
+                      Node Address:
+                    </span>
+                    <span className="text-white font-mono text-xs">
+                      {decodedAddress}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block mb-1">
+                      IP Address:
+                    </span>
+                    <span className="text-white font-mono text-xs">{ip}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block mb-1">
+                      Gossip Port:
+                    </span>
+                    <span className="text-white font-mono text-xs">{port}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block mb-1">RPC Port:</span>
+                    <span className="text-white font-mono text-xs">6000</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-neo-teal/5 border border-neo-teal/30 rounded-lg p-4">
+                <h3 className="text-base font-semibold text-white mb-3">
+                  Possible Reasons:
+                </h3>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-start gap-2">
+                    <span className="text-neo-teal text-lg mt-0.5">•</span>
+                    <div>
+                      <strong className="text-white">
+                        Port 6000 Not Accessible
+                      </strong>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        The pNode's RPC port (6000) may not be publicly exposed
+                        or accessible from this network
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-neo-teal text-lg mt-0.5">•</span>
+                    <div>
+                      <strong className="text-white">Node is Offline</strong>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        The pNode may be temporarily offline or experiencing
+                        connectivity issues
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-neo-teal text-lg mt-0.5">•</span>
+                    <div>
+                      <strong className="text-white">
+                        Firewall Configuration
+                      </strong>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Firewall rules or network configuration may be blocking
+                        external RPC requests
+                      </p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-neo-teal text-lg mt-0.5">•</span>
+                    <div>
+                      <strong className="text-white">
+                        RPC Server Not Running
+                      </strong>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        The pNode software may not have the RPC server enabled
+                        or running
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-4 text-center">
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-neo-teal text-space-dark font-bold rounded-lg hover:scale-105 transition-all text-sm"
+                >
+                  ← Back to Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
 
-  const ip = decodedAddress.split(":")[0];
+  // Get geolocation
   const geoData = await getGeoLocation(ip);
   const health = getNodeHealth(stats.last_updated);
 
@@ -114,22 +260,22 @@ export default async function PNodeDetailPage({
         {/* Top Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard
-            icon="💾"
+            icon={<Server className="w-8 h-8" />}
             label="Storage Used"
             value={formatBytes(stats.total_bytes)}
           />
           <StatCard
-            icon="📊"
+            icon={<ChartColumnBig className="w-8 h-8" />}
             label="Total Pages"
             value={stats.total_pages.toLocaleString()}
           />
           <StatCard
-            icon="⚡"
+            icon={<Zap className="w-8 h-8" />}
             label="Active Streams"
             value={stats.active_streams.toString()}
           />
           <StatCard
-            icon="⏱️"
+            icon={<Timer className="w-8 h-8" />}
             label="Uptime"
             value={formatUptime(stats.uptime)}
           />
@@ -141,7 +287,7 @@ export default async function PNodeDetailPage({
           <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                <span className="text-2xl">🖥️</span>
+                <Monitor className="w-5 h-5 text-neo-teal" />
                 Node Information
               </h2>
               <span className="text-xs text-neo-teal bg-neo-teal/10 px-3 py-1 rounded-full border border-neo-teal/30">
@@ -153,45 +299,49 @@ export default async function PNodeDetailPage({
               <InfoRow
                 label="Gossip Address"
                 value={decodedAddress}
-                icon="🌐"
+                icon={<Globe className="w-4 h-4" />}
               />
-              <InfoRow label="RPC Address" value={`${ip}:6000`} icon="🔌" />
+              <InfoRow
+                label="RPC Address"
+                value={`${ip}:6000`}
+                icon={<Plug2 className="w-4 h-4" />}
+              />
               <InfoRow
                 label="Version"
                 value={stats.version || "Unknown"}
-                icon="📦"
+                icon={<LayersPlus className="w-4 h-4" />}
               />
               <InfoRow
                 label="CPU Usage"
                 value={`${stats.cpu_percent.toFixed(1)}%`}
-                icon="🖥️"
+                icon={<Cpu className="w-4 h-4" />}
               />
               <InfoRow
                 label="RAM Usage"
                 value={`${formatBytes(stats.ram_used)} / ${formatBytes(
                   stats.ram_total
                 )}`}
-                icon="💾"
+                icon={<MemoryStick className="w-4 h-4" />}
               />
               <InfoRow
                 label="Packets Received"
                 value={`${stats.packets_received}/s`}
-                icon="📥"
+                icon={<HardDriveDownload className="w-4 h-4" />}
               />
               <InfoRow
                 label="Packets Sent"
                 value={`${stats.packets_sent}/s`}
-                icon="📤"
+                icon={<HardDriveUpload className="w-4 h-4" />}
               />
             </div>
           </div>
 
           {/* Location */}
-          {geoData && (
+          {geoData ? (
             <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <span className="text-2xl">🌍</span>
+                  <MapPin className="w-5 h-5 text-neo-teal" />
                   Location
                 </h2>
                 <span className="text-xs text-neo-teal bg-neo-teal/10 px-3 py-1 rounded-full border border-neo-teal/30">
@@ -200,16 +350,50 @@ export default async function PNodeDetailPage({
               </div>
 
               <div className="space-y-4">
-                <InfoRow label="Country" value={geoData.country} icon="🌐" />
-                <InfoRow label="City" value={geoData.city} icon="🏙️" />
-                <InfoRow label="Region" value={geoData.regionName} icon="📍" />
-                <InfoRow label="ISP" value={geoData.isp} icon="🔗" />
-                <InfoRow label="Organization" value={geoData.org} icon="🏢" />
+                <InfoRow
+                  label="Country"
+                  value={geoData.country}
+                  icon={<Globe className="w-4 h-4" />}
+                />
+                <InfoRow
+                  label="City"
+                  value={geoData.city}
+                  icon={<MapPin className="w-4 h-4" />}
+                />
+                <InfoRow
+                  label="Region"
+                  value={geoData.regionName}
+                  icon={<MapPin className="w-4 h-4" />}
+                />
+                <InfoRow
+                  label="ISP"
+                  value={geoData.isp}
+                  icon={<Network className="w-4 h-4" />}
+                />
+                <InfoRow
+                  label="Organization"
+                  value={geoData.org}
+                  icon={<NotebookPen className="w-4 h-4" />}
+                />
                 <InfoRow
                   label="Coordinates"
                   value={`${geoData.lat}, ${geoData.lon}`}
-                  icon="📌"
+                  icon={<MapPin className="w-4 h-4" />}
                 />
+              </div>
+            </div>
+          ) : (
+            <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-neo-teal" />
+                  Location
+                </h2>
+              </div>
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">
+                  Location data unavailable (rate limit or IP lookup failed)
+                </p>
               </div>
             </div>
           )}
@@ -217,7 +401,7 @@ export default async function PNodeDetailPage({
           {/* Storage Stats */}
           <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all">
             <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="text-2xl">💿</span>
+              <NotebookPen className="w-5 h-5 text-neo-teal" />
               Storage Statistics
             </h2>
 
@@ -265,7 +449,7 @@ export default async function PNodeDetailPage({
           {/* Network Activity */}
           <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all">
             <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="text-2xl">📶</span>
+              <Network className="w-5 h-5 text-neo-teal" />
               Network Activity
             </h2>
 
@@ -312,7 +496,7 @@ export default async function PNodeDetailPage({
         {/* Performance Metrics */}
         <div className="mt-6 bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all">
           <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-            <span className="text-2xl">📈</span>
+            <LaptopMinimalCheck className="w-5 h-5 text-neo-teal" />
             Performance Metrics
           </h2>
 
@@ -375,7 +559,7 @@ function StatCard({
   label,
   value,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   value: string;
 }) {
@@ -386,7 +570,7 @@ function StatCard({
           <p className="text-gray-400 text-sm mb-2">{label}</p>
           <p className="text-3xl font-bold text-neo-teal">{value}</p>
         </div>
-        <div className="text-4xl opacity-60">{icon}</div>
+        <div className="text-neo-teal opacity-60">{icon}</div>
       </div>
     </div>
   );
@@ -399,12 +583,12 @@ function InfoRow({
 }: {
   label: string;
   value: string;
-  icon: string;
+  icon: React.ReactNode;
 }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-space-border last:border-0">
       <span className="text-gray-400 text-sm flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
+        <span className="text-neo-teal">{icon}</span>
         {label}
       </span>
       <span className="text-white font-mono text-sm text-right break-all max-w-[60%]">

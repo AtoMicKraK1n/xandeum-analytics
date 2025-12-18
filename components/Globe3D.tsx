@@ -71,12 +71,16 @@ export function Globe3D({ pnodes }: Globe3DProps) {
   const [geolocatedNodes, setGeolocatedNodes] = useState<GeolocatedPNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCount, setActiveCount] = useState(0);
+  const hasInitialized = useRef(false); // Prevent re-initialization
 
   const width = 500;
   const height = 500;
 
-  // Fetch geolocation for nodes
+  // Fetch geolocation for nodes ONCE
   useEffect(() => {
+    if (hasInitialized.current) return; // Already fetched
+    hasInitialized.current = true;
+
     const fetchGeolocations = async () => {
       setLoading(true);
       const sortedNodes = [...pnodes]
@@ -117,7 +121,11 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           (n): n is GeolocatedPNode => n !== null
         );
         geolocated.push(...validNodes);
-        setGeolocatedNodes([...geolocated]);
+
+        // Only update state ONCE at the end, not progressively
+        if (i + 10 >= sortedNodes.length) {
+          setGeolocatedNodes(geolocated);
+        }
 
         if (i + 10 < sortedNodes.length) {
           await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -134,11 +142,11 @@ export function Globe3D({ pnodes }: Globe3DProps) {
     };
 
     fetchGeolocations();
-  }, [pnodes]);
+  }, []); // Empty dependency - only run ONCE
 
-  // D3.js Globe Setup
+  // D3.js Globe Setup - runs ONCE when nodes are ready
   useEffect(() => {
-    if (!canvasRef.current || geolocatedNodes.length === 0) return;
+    if (!canvasRef.current || geolocatedNodes.length === 0 || loading) return;
 
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
@@ -164,7 +172,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
 
     const path = d3.geoPath().projection(projection).context(context);
 
-    // Convert pNodes to markers
     // Convert pNodes to markers
     const nodeMarkers: NodeMarker[] = geolocatedNodes.map((node) => {
       const nodeColor = getNodeColor(node.last_seen_timestamp);
@@ -313,14 +320,12 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         });
 
         // Draw node markers with BLINKING effect
-        // Draw node markers with BLINKING effect
         animationTime += 0.05;
         nodeMarkers.forEach((marker, index) => {
           const projected = projection([marker.lng, marker.lat]);
           if (projected) {
-            // Calculate blinking opacity
             const blinkSpeed = 1 + Math.sin(index * 0.5) * 0.5;
-            const baseOpacity = marker.opacity; // Use marker's base opacity
+            const baseOpacity = marker.opacity;
             const blinkingOpacity =
               baseOpacity * (0.5 + Math.sin(animationTime * blinkSpeed) * 0.5);
 
@@ -448,25 +453,32 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       rotationTimer.stop();
       canvas.removeEventListener("mousedown", handleMouseDown);
     };
-  }, [geolocatedNodes]);
+  }, [geolocatedNodes, loading]); // Only re-run when geolocatedNodes is FINAL
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full w-full bg-cyber-card/50 rounded-lg p-8">
+      <div className="flex items-center justify-center h-full w-full bg-space-card/50 rounded-lg p-8">
         <p className="text-red-400 text-sm">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-black rounded-lg border border-cyber-border overflow-hidden">
-      <div className="p-4 border-b border-cyber-border">
-        <h3 className="text-lg font-semibold text-white">Nodes Distribution</h3>
+    <div className="bg-black rounded-lg border border-space-border overflow-hidden">
+      <div className="p-4 border-b border-space-border">
+        <h3 className="text-lg font-semibold text-white">
+          Global Distribution
+        </h3>
         <div className="flex items-center gap-2 mt-2">
-          <div className="w-2 h-2 rounded-full bg-cyber-mint animate-pulse"></div>
-          <span className="text-sm text-gray-300">{`Active Nodes`}</span>
+          <div className="w-2 h-2 rounded-full bg-neo-teal animate-pulse"></div>
+          <span className="text-sm text-gray-300">
+            {loading
+              ? "Mapping nodes..."
+              : `${activeCount} Active Nodes Shown on Globe`}
+          </span>
         </div>
       </div>
+
       <div
         className="relative bg-black flex items-center justify-center"
         style={{ height: "500px" }}
@@ -476,7 +488,7 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           className="cursor-move touch-none"
           style={{ width, height }}
         />
-      </div>{" "}
+      </div>
     </div>
   );
 }
