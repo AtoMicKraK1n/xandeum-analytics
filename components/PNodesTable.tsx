@@ -8,6 +8,7 @@ interface PNode {
   address: string;
   version: string;
   last_seen_timestamp: number;
+  pubkey: string | null;
   total_bytes?: number;
   uptime?: number;
   cpu_percent?: number;
@@ -43,7 +44,8 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
     let filtered = initialPnodes.filter((pnode) => {
       const matchesSearch =
         pnode.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pnode.version?.toLowerCase().includes(searchTerm.toLowerCase());
+        pnode.version?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pnode.pubkey?.toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
 
@@ -90,6 +92,12 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return `${Math.floor(diff / 86400)}d ago`;
+  };
+
+  const truncatePubkey = (pubkey: string | null) => {
+    if (!pubkey) return "N/A";
+    if (pubkey.length <= 16) return pubkey;
+    return pubkey;
   };
 
   return (
@@ -179,7 +187,7 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
                   onClick={() => handleSort("address")}
                   className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-neo-teal transition-colors"
                 >
-                  Status & Address
+                  Status & Public Key
                   {sortField === "address" && (
                     <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
                   )}
@@ -223,13 +231,14 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-3 h-3 rounded-full bg-neo-teal"
+                        className="w-3 h-3 rounded-full bg-neo-teal flex-shrink-0"
                         style={{ opacity: health.opacity }}
                         title={health.text}
                       />
                       <div>
+                        <div className="min-w-0 flex-1"></div>
                         <div className="text-sm font-mono text-white">
-                          {pnode.address}
+                          {truncatePubkey(pnode.pubkey)}
                         </div>
                         <div className="text-xs text-gray-500">
                           {health.text}
