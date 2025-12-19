@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Image from "next/image";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { PNodesTable } from "@/components/PNodesTable";
 import { Globe3D } from "@/components/Globe3D";
@@ -44,8 +44,19 @@ export default async function Home() {
       <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Logo */}
+              <Image
+                src="/logo_edited.avif"
+                alt="Xandeum Logo"
+                width={170}
+                height={170}
+                className="rounded-lg"
+                priority
+              />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">
+              <h1 className="text-2xl font-bold text-white">
                 Xandeum Analytics
               </h1>
             </div>
@@ -106,62 +117,64 @@ export default async function Home() {
               </div>
             </div>
 
-            {/* Node counts - NEW SECTION */}
-            <div className="grid grid-cols-4 gap-4 pt-6 border-t border-neo-teal/20">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2"></div>
-                <div className="text-3xl font-bold text-neo-teal">
+            {/* Node counts - BIGGER & CENTERED */}
+            <div className="grid grid-cols-4 gap-6 pt-4 border-t border-neo-teal/20">
+              <div className="text-center py-12">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="w-4 h-4 rounded-full"></div>
+                </div>
+                <div className="text-5xl font-bold text-neo-teal mb-2">
                   {stats?.totals?.total || 0}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">Total pNodes</div>
+                <div className="text-sm text-gray-400">Total pNodes</div>
               </div>
 
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="text-center py-12">
+                <div className="flex items-center justify-center mb-3">
                   <div
-                    className="w-3 h-3 rounded-full bg-neo-teal"
+                    className="w-4 h-4 rounded-full bg-neo-teal"
                     style={{ opacity: 1.0 }}
                   ></div>
                 </div>
                 <div
-                  className="text-3xl font-bold text-neo-teal"
+                  className="text-5xl font-bold text-neo-teal mb-2"
                   style={{ opacity: 1.0 }}
                 >
                   {stats?.totals?.healthy || 0}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">Healthy</div>
+                <div className="text-sm text-gray-400">Healthy</div>
               </div>
 
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="text-center py-12">
+                <div className="flex items-center justify-center mb-3">
                   <div
-                    className="w-3 h-3 rounded-full bg-neo-teal"
+                    className="w-4 h-4 rounded-full bg-neo-teal"
                     style={{ opacity: 0.5 }}
                   ></div>
                 </div>
                 <div
-                  className="text-3xl font-bold text-neo-teal"
+                  className="text-5xl font-bold text-neo-teal mb-2"
                   style={{ opacity: 0.5 }}
                 >
                   {stats?.totals?.degraded || 0}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">Degraded</div>
+                <div className="text-sm text-gray-400">Degraded</div>
               </div>
 
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="text-center py-12">
+                <div className="flex items-center justify-center mb-3">
                   <div
-                    className="w-3 h-3 rounded-full bg-neo-teal"
+                    className="w-4 h-4 rounded-full bg-neo-teal"
                     style={{ opacity: 0.2 }}
                   ></div>
                 </div>
                 <div
-                  className="text-3xl font-bold text-neo-teal"
+                  className="text-5xl font-bold text-neo-teal mb-2"
                   style={{ opacity: 0.2 }}
                 >
                   {stats?.totals?.offline || 0}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">Offline</div>
+                <div className="text-sm text-gray-400">Offline</div>
               </div>
             </div>
           </div>
@@ -171,47 +184,6 @@ export default async function Home() {
             <Globe3D pnodes={pnodes} />
           </div>
         </div>
-
-        {/* Version Intelligence Widget
-        <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 mb-8 border border-space-border hover:border-neo-teal/30 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">
-              Version Intelligence
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">Latest:</span>
-              <span className="px-3 py-1 bg-neo-teal text-space-dark rounded-lg font-semibold">
-                {stats?.versions?.latest || "N/A"}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            {stats?.versions?.distribution &&
-              Object.entries(stats.versions.distribution).map(
-                ([version, count]) => (
-                  <div
-                    key={version}
-                    className={`text-center p-4 rounded-lg backdrop-blur transition-all ${
-                      version === stats.versions.latest
-                        ? "bg-neo-teal/20 border-2 border-neo-teal shadow-lg shadow-neo-teal/20"
-                        : "bg-space-card/40 border border-space-border hover:border-neo-teal/30"
-                    }`}
-                  >
-                    <div className="text-3xl font-bold text-neo-teal">
-                      {count as number}
-                    </div>
-                    <div className="text-sm text-gray-300 mt-1">{version}</div>
-                    {version === stats.versions.latest && (
-                      <div className="text-xs text-neo-teal mt-1 font-semibold">
-                        ✨ Latest
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-          </div>
-        </div> */}
 
         {/* pNodes Table with Filters */}
         <PNodesTable initialPnodes={pnodes} />

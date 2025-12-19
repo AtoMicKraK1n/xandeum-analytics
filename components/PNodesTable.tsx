@@ -23,6 +23,29 @@ interface PNodesTableProps {
 type SortField = "address" | "version" | "last_seen";
 type SortOrder = "asc" | "desc";
 
+// List of public pNodes (with port 6000 accessible)
+const PUBLIC_NODE_IPS = [
+  "173.212.207.32",
+  "152.53.236.91",
+  "62.171.138.27",
+  "89.123.115.81",
+  "45.151.122.77",
+  "161.97.185.116",
+  "192.190.136.28",
+  "89.123.115.79",
+  "154.38.171.140",
+  "154.38.170.117",
+  "152.53.155.15",
+  "45.151.122.60",
+  "173.249.3.118",
+  "216.234.134.5",
+  "161.97.97.41",
+  "62.171.135.107",
+  "173.212.220.65",
+  "192.190.136.38",
+  "207.244.255.1",
+];
+
 export function PNodesTable({ initialPnodes }: PNodesTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [healthFilter, setHealthFilter] = useState<
@@ -38,6 +61,11 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
       setSortField(field);
       setSortOrder("desc");
     }
+  };
+
+  const isPublicNode = (address: string): boolean => {
+    const ip = address.split(":")[0];
+    return PUBLIC_NODE_IPS.includes(ip);
   };
 
   const filteredAndSortedPnodes = useMemo(() => {
@@ -56,13 +84,21 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
     });
 
     filtered.sort((a, b) => {
+      // PRIORITY: Public nodes always come first
+      const aIsPublic = isPublicNode(a.address);
+      const bIsPublic = isPublicNode(b.address);
+
+      if (aIsPublic && !bIsPublic) return -1;
+      if (!aIsPublic && bIsPublic) return 1;
+
+      // Within the same group (public or private), sort by selected field
       let aValue: any;
       let bValue: any;
 
       switch (sortField) {
         case "address":
-          aValue = a.address;
-          bValue = b.address;
+          aValue = a.pubkey || a.address;
+          bValue = b.pubkey || b.address;
           break;
         case "version":
           aValue = a.version || "";
@@ -112,7 +148,7 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
           <div className="flex-1">
             <input
               type="text"
-              placeholder="Search by address or version..."
+              placeholder="Search by public key, address or version..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-2 bg-space-dark border border-space-border rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-neo-teal transition-colors"
@@ -223,6 +259,8 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
           <tbody className="divide-y divide-space-border">
             {filteredAndSortedPnodes.map((pnode) => {
               const health = getNodeHealth(pnode.last_seen_timestamp);
+              const isPublic = isPublicNode(pnode.address);
+
               return (
                 <tr
                   key={pnode.address}
@@ -235,10 +273,16 @@ export function PNodesTable({ initialPnodes }: PNodesTableProps) {
                         style={{ opacity: health.opacity }}
                         title={health.text}
                       />
-                      <div>
-                        <div className="min-w-0 flex-1"></div>
-                        <div className="text-sm font-mono text-white">
-                          {truncatePubkey(pnode.pubkey)}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-mono text-white truncate">
+                            {truncatePubkey(pnode.pubkey)}
+                          </div>
+                          {isPublic && (
+                            <span className="flex-shrink-0 text-xs px-2 py-0.5 bg-neo-teal/20 text-neo-teal border border-neo-teal/30 rounded font-semibold">
+                              PUBLIC
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-gray-500">
                           {health.text}

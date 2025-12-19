@@ -53,6 +53,29 @@ interface NodeMarker {
   address: string;
 }
 
+// List of public pNode IPs (with port 6000 accessible)
+const PUBLIC_NODE_IPS = [
+  "173.212.207.32",
+  "152.53.236.91",
+  "62.171.138.27",
+  "89.123.115.81",
+  "45.151.122.77",
+  "161.97.185.116",
+  "192.190.136.28",
+  "89.123.115.79",
+  "154.38.171.140",
+  "154.38.170.117",
+  "152.53.155.15",
+  "45.151.122.60",
+  "173.249.3.118",
+  "216.234.134.5",
+  "161.97.97.41",
+  "62.171.135.107",
+  "173.212.220.65",
+  "192.190.136.38",
+  "207.244.255.1",
+];
+
 function getNodeColor(lastSeenTimestamp: number): {
   color: string;
   opacity: number;
@@ -76,21 +99,27 @@ export function Globe3D({ pnodes }: Globe3DProps) {
   const width = 500;
   const height = 500;
 
-  // Fetch geolocation for nodes ONCE
+  // Fetch geolocation for PUBLIC nodes ONCE
   useEffect(() => {
     if (hasInitialized.current) return; // Already fetched
     hasInitialized.current = true;
 
     const fetchGeolocations = async () => {
       setLoading(true);
-      const sortedNodes = [...pnodes]
-        .sort((a, b) => b.last_seen_timestamp - a.last_seen_timestamp)
-        .slice(0, 40);
+
+      // Filter to only public nodes
+      const publicNodes = pnodes
+        .filter((node) => {
+          const ip = node.address.split(":")[0];
+          return PUBLIC_NODE_IPS.includes(ip);
+        })
+        .sort((a, b) => b.last_seen_timestamp - a.last_seen_timestamp);
 
       const geolocated: GeolocatedPNode[] = [];
 
-      for (let i = 0; i < sortedNodes.length; i += 10) {
-        const batch = sortedNodes.slice(i, i + 10);
+      // Fetch in smaller batches to avoid rate limiting
+      for (let i = 0; i < publicNodes.length; i += 5) {
+        const batch = publicNodes.slice(i, i + 5);
 
         const results = await Promise.all(
           batch.map(async (node) => {
@@ -123,11 +152,12 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         geolocated.push(...validNodes);
 
         // Only update state ONCE at the end, not progressively
-        if (i + 10 >= sortedNodes.length) {
+        if (i + 5 >= publicNodes.length) {
           setGeolocatedNodes(geolocated);
         }
 
-        if (i + 10 < sortedNodes.length) {
+        // Add delay between batches
+        if (i + 5 < publicNodes.length) {
           await new Promise((resolve) => setTimeout(resolve, 1500));
         }
       }
@@ -464,17 +494,17 @@ export function Globe3D({ pnodes }: Globe3DProps) {
   }
 
   return (
-    <div className="bg-black rounded-lg border border-space-border overflow-hidden">
+    <div className="bg-black rounded-2xl border border-space-border overflow-hidden">
       <div className="p-4 border-b border-space-border">
         <h3 className="text-lg font-semibold text-white">
-          Global Distribution
+          Public Node Distribution
         </h3>
         <div className="flex items-center gap-2 mt-2">
           <div className="w-2 h-2 rounded-full bg-neo-teal animate-pulse"></div>
           <span className="text-sm text-gray-300">
             {loading
-              ? "Mapping nodes..."
-              : `${activeCount} Active Nodes Shown on Globe`}
+              ? "Mapping public nodes..."
+              : `${activeCount} Public Nodes Shown on Globe`}
           </span>
         </div>
       </div>
