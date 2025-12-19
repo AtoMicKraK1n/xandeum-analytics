@@ -19,8 +19,16 @@ export function NavDrawer({ onDrawerChange }: NavDrawerProps) {
   const navItems = [
     { name: "Dashboard", href: "/", icon: Home },
     { name: "Network Map", href: "/map", icon: Globe },
-    { name: "Version Intelligence", href: "/version", icon: BarChart3 },
-    { name: "More on Xandeum", href: "/xandeum", icon: BadgeQuestionMark },
+    {
+      name: "Version Intelligence",
+      href: "/version-intelligence",
+      icon: BarChart3,
+    },
+    {
+      name: "More on Xandeum",
+      href: "https://www.xandeum.network/",
+      icon: BadgeQuestionMark,
+    },
   ];
 
   return (
