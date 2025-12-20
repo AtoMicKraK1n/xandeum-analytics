@@ -283,13 +283,6 @@ export default function PNodeDetailPage() {
                 <code className="text-gray-400 text-sm bg-space-dark px-3 py-1 rounded border border-space-border">
                   {address}
                 </code>
-                <span
-                  className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold bg-neo-teal/10 border border-neo-teal/30"
-                  style={{ opacity: health.opacity }}
-                >
-                  <span className="w-2 h-2 rounded-full bg-neo-teal"></span>
-                  {health.text}
-                </span>
               </div>
             </div>
           </div>
@@ -607,7 +600,7 @@ function StatCard({
     <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all hover:scale-105">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-gray-400 text-sm mb-2">{label}</p>
+          <p className="text-white text-md mb-2">{label}</p>
           <p className="text-3xl font-bold text-neo-teal">{value}</p>
         </div>
         <div className="text-neo-teal opacity-60">{icon}</div>
@@ -627,11 +620,11 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-space-border last:border-0">
-      <span className="text-gray-400 text-sm flex items-center gap-2">
+      <span className="text-white text-md flex items-center gap-2">
         <span className="text-neo-teal">{icon}</span>
         {label}
       </span>
-      <span className="text-white font-mono text-sm text-right break-all max-w-[60%]">
+      <span className="text-white font-mono text-md text-right break-all max-w-[60%]">
         {value}
       </span>
     </div>

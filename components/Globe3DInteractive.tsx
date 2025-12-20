@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { GeoPermissibleObjects } from "d3";
+import { NodePopup } from "./NodePopup";
 
 interface PNode {
   address: string;
+  version: string;
   last_seen_timestamp: number;
   lat?: number;
   lng?: number;
@@ -18,8 +20,10 @@ interface GeolocatedPNode extends PNode {
   lng: number;
 }
 
-interface Globe3DProps {
+interface Globe3DInteractiveProps {
   pnodes: PNode[];
+  width?: number;
+  height?: number;
 }
 
 interface PolygonGeometry {
@@ -51,6 +55,8 @@ interface NodeMarker {
   city?: string;
   country?: string;
   address: string;
+  version: string;
+  last_seen_timestamp: number;
 }
 
 function getNodeColor(lastSeenTimestamp: number): {
@@ -60,25 +66,29 @@ function getNodeColor(lastSeenTimestamp: number): {
   const now = Date.now() / 1000;
   const diff = now - lastSeenTimestamp;
 
-  if (diff < 300) return { color: "#14F1C6", opacity: 1.0 }; // healthy
-  if (diff < 3600) return { color: "#14F1C6", opacity: 0.5 }; // degraded
-  return { color: "#14F1C6", opacity: 0.2 }; // offline
+  if (diff < 300) return { color: "#14F1C6", opacity: 1.0 };
+  if (diff < 3600) return { color: "#14F1C6", opacity: 0.5 };
+  return { color: "#14F1C6", opacity: 0.2 };
 }
 
-export function Globe3D({ pnodes }: Globe3DProps) {
+export function Globe3DInteractive({
+  pnodes,
+  width = 700,
+  height = 700,
+}: Globe3DInteractiveProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [geolocatedNodes, setGeolocatedNodes] = useState<GeolocatedPNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCount, setActiveCount] = useState(0);
+  const [selectedNode, setSelectedNode] = useState<GeolocatedPNode | null>(
+    null
+  );
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const hasInitialized = useRef(false);
+  const projectionRef = useRef<d3.GeoProjection | null>(null);
 
-  const width = 500;
-  const height = 500;
-
-  // Fetch geolocation for public nodes
   useEffect(() => {
-    // Reset initialization flag when pnodes change
     if (pnodes.length === 0) {
       hasInitialized.current = false;
       return;
@@ -90,13 +100,9 @@ export function Globe3D({ pnodes }: Globe3DProps) {
     const fetchGeolocations = async () => {
       setLoading(true);
 
-      console.log(`[Globe3D] Starting geolocation for ${pnodes.length} nodes`);
-
-      // Filter to only public nodes (exclude private IPs)
       const publicNodes = pnodes
         .filter((node) => {
           const ip = node.address.split(":")[0];
-          // Exclude private IP ranges
           return (
             !ip.startsWith("192.168.") &&
             !ip.startsWith("10.") &&
@@ -120,13 +126,10 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           );
         })
         .sort((a, b) => b.last_seen_timestamp - a.last_seen_timestamp)
-        .slice(0, 25); // Limit to 25 nodes for performance
-
-      console.log(`[Globe3D] Found ${publicNodes.length} public nodes`);
+        .slice(0, 50);
 
       const geolocated: GeolocatedPNode[] = [];
 
-      // Fetch in batches to avoid rate limiting
       for (let i = 0; i < publicNodes.length; i += 5) {
         const batch = publicNodes.slice(i, i + 5);
 
@@ -142,9 +145,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
                 const data = await res.json();
 
                 if (data.lat && data.lng) {
-                  console.log(
-                    `[Globe3D] ✓ Got location for ${ip}: ${data.city}, ${data.country}`
-                  );
                   return {
                     ...node,
                     lat: data.lat,
@@ -155,10 +155,7 @@ export function Globe3D({ pnodes }: Globe3DProps) {
                 }
               }
             } catch (error) {
-              console.error(
-                `[Globe3D] Failed to get location for ${ip}:`,
-                error
-              );
+              console.error(`Failed to get location for ${ip}:`, error);
             }
             return null;
           })
@@ -168,30 +165,15 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           (n): n is GeolocatedPNode => n !== null
         );
         geolocated.push(...validNodes);
-
-        console.log(
-          `[Globe3D] Batch ${i / 5 + 1} complete: ${
-            validNodes.length
-          } locations found`
-        );
       }
 
-      console.log(`[Globe3D] Total geolocated nodes: ${geolocated.length}`);
       setGeolocatedNodes(geolocated);
-
-      const active = geolocated.filter((n) => {
-        const diff = Date.now() / 1000 - n.last_seen_timestamp;
-        return diff < 300;
-      }).length;
-
-      setActiveCount(active);
       setLoading(false);
     };
 
     fetchGeolocations();
   }, [pnodes]);
 
-  // D3.js Globe Setup
   useEffect(() => {
     if (!canvasRef.current || loading) return;
 
@@ -217,9 +199,10 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       .clipAngle(90)
       .rotate([0, -20]);
 
+    projectionRef.current = projection;
+
     const path = d3.geoPath().projection(projection).context(context);
 
-    // Convert pNodes to markers
     const nodeMarkers: NodeMarker[] = geolocatedNodes.map((node) => {
       const nodeColor = getNodeColor(node.last_seen_timestamp);
       return {
@@ -230,12 +213,11 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         city: node.city,
         country: node.country,
         address: node.address,
+        version: node.version,
+        last_seen_timestamp: node.last_seen_timestamp,
       };
     });
 
-    console.log(`[Globe3D] Rendering ${nodeMarkers.length} markers`);
-
-    // Point in polygon helper
     const pointInPolygon = (
       point: [number, number],
       polygon: number[][]
@@ -314,7 +296,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       const currentScale = projection.scale();
       const scaleFactor = currentScale / radius;
 
-      // Draw globe background
       context.beginPath();
       context.arc(
         containerWidth / 2,
@@ -326,13 +307,11 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       context.fillStyle = "#000000";
       context.fill();
 
-      // Globe outline
       context.strokeStyle = "#333333";
       context.lineWidth = 1.5 * scaleFactor;
       context.stroke();
 
       if (landFeatures) {
-        // Draw graticule
         const graticule = d3.geoGraticule();
         context.beginPath();
         path(graticule());
@@ -342,7 +321,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         context.stroke();
         context.globalAlpha = 1;
 
-        // Draw land outlines
         context.beginPath();
         landFeatures.features.forEach((feature) => {
           path(feature as GeoPermissibleObjects);
@@ -351,7 +329,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         context.lineWidth = 0.8 * scaleFactor;
         context.stroke();
 
-        // Draw halftone dots for land
         allDots.forEach((dot) => {
           const projected = projection([dot.lng, dot.lat]);
           if (projected) {
@@ -368,7 +345,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           }
         });
 
-        // Draw node markers with BLINKING effect
         animationTime += 0.05;
         nodeMarkers.forEach((marker, index) => {
           const projected = projection([marker.lng, marker.lat]);
@@ -378,7 +354,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
             const blinkingOpacity =
               baseOpacity * (0.5 + Math.sin(animationTime * blinkSpeed) * 0.5);
 
-            // Draw outer glow
             context.beginPath();
             context.arc(
               projected[0],
@@ -391,7 +366,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
             context.globalAlpha = blinkingOpacity * 0.3;
             context.fill();
 
-            // Draw middle glow
             context.beginPath();
             context.arc(
               projected[0],
@@ -403,7 +377,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
             context.globalAlpha = blinkingOpacity * 0.5;
             context.fill();
 
-            // Draw main marker
             context.beginPath();
             context.arc(
               projected[0],
@@ -445,7 +418,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       }
     };
 
-    // Rotation logic
     const rotation: [number, number] = [0, -20];
     let autoRotate = true;
     const rotationSpeed = 0.3;
@@ -460,7 +432,6 @@ export function Globe3D({ pnodes }: Globe3DProps) {
 
     const rotationTimer = d3.timer(rotate);
 
-    // Mouse interaction
     const handleMouseDown = (event: MouseEvent) => {
       autoRotate = false;
       const startX = event.clientX;
@@ -494,15 +465,43 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       document.addEventListener("mouseup", handleMouseUp);
     };
 
+    // Click handler for markers
+    const handleClick = (event: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      // Check if click is near any marker
+      for (const node of geolocatedNodes) {
+        const projected = projection([node.lng, node.lat]);
+        if (projected) {
+          const distance = Math.sqrt(
+            Math.pow(x - projected[0], 2) + Math.pow(y - projected[1], 2)
+          );
+
+          if (distance < 10) {
+            setSelectedNode(node);
+            setPopupPosition({
+              x: event.clientX,
+              y: event.clientY,
+            });
+            return;
+          }
+        }
+      }
+    };
+
     canvas.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("click", handleClick);
 
     loadWorldData();
 
     return () => {
       rotationTimer.stop();
       canvas.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("click", handleClick);
     };
-  }, [geolocatedNodes, loading]);
+  }, [geolocatedNodes, loading, width, height]);
 
   if (error) {
     return (
@@ -513,38 +512,37 @@ export function Globe3D({ pnodes }: Globe3DProps) {
   }
 
   return (
-    <div className="bg-black rounded-2xl border border-space-border overflow-hidden">
-      <div className="p-4 border-b border-space-border">
-        <h3 className="text-lg font-semibold text-white">
-          Public Node Distribution
-        </h3>
-        <div className="flex items-center gap-2 mt-2">
-          <div className="w-2 h-2 rounded-full bg-neo-teal animate-pulse"></div>
-          <span className="text-sm text-gray-300">
-            {loading
-              ? "Mapping public nodes..."
-              : `${geolocatedNodes.length} Public Nodes Shown on Globe (${activeCount} Active)`}
-          </span>
+    <>
+      <div
+        ref={containerRef}
+        className="bg-black rounded-2xl border border-space-border overflow-hidden"
+      >
+        <div
+          className="relative bg-black flex items-center justify-center"
+          style={{ height }}
+        >
+          {loading ? (
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-gray-400 text-sm">Loading globe...</p>
+            </div>
+          ) : (
+            <canvas
+              ref={canvasRef}
+              className="cursor-pointer touch-none"
+              style={{ width, height }}
+            />
+          )}
         </div>
       </div>
 
-      <div
-        className="relative bg-black flex items-center justify-center"
-        style={{ height: "500px" }}
-      >
-        {loading ? (
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-            <p className="text-gray-400 text-sm">Loading globe...</p>
-          </div>
-        ) : (
-          <canvas
-            ref={canvasRef}
-            className="cursor-move touch-none"
-            style={{ width, height }}
-          />
-        )}
-      </div>
-    </div>
+      {selectedNode && (
+        <NodePopup
+          node={selectedNode}
+          position={popupPosition}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
+    </>
   );
 }

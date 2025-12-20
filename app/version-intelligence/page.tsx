@@ -79,7 +79,6 @@ export default function VersionIntelligencePage() {
         <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl">
           <div className="container mx-auto px-4 py-6">
             <div className="flex items-center gap-3 mb-2">
-              <Package className="w-8 h-8 text-neo-teal" />
               <h1 className="text-3xl font-bold text-white">
                 Version Intelligence
               </h1>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Home, Globe, BarChart3, BadgeQuestionMark } from "lucide-react";
 
@@ -10,11 +10,37 @@ interface NavDrawerProps {
 
 export function NavDrawer({ onDrawerChange }: NavDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [nodeCount, setNodeCount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const handleDrawerChange = (open: boolean) => {
     setIsOpen(open);
     onDrawerChange?.(open);
   };
+
+  // Fetch node count
+  useEffect(() => {
+    async function fetchNodeCount() {
+      try {
+        const res = await fetch("/api/network/overview", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setNodeCount(data?.data?.totals?.total || 0);
+        }
+      } catch (error) {
+        console.error("Failed to fetch node count:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchNodeCount();
+
+    // Refresh count every 60 seconds
+    const interval = setInterval(fetchNodeCount, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: Home },
@@ -70,7 +96,16 @@ export function NavDrawer({ onDrawerChange }: NavDrawerProps) {
           <div className="absolute bottom-6 left-6 right-6">
             <div className="bg-neo-teal/10 border border-neo-teal/30 rounded-lg p-4">
               <p className="text-xs text-gray-400 mb-1">Active Nodes</p>
-              <p className="text-2xl font-bold text-neo-teal">246</p>
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-neo-teal border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-400">Loading...</p>
+                </div>
+              ) : (
+                <p className="text-2xl font-bold text-neo-teal">
+                  {nodeCount !== null ? nodeCount : "--"}
+                </p>
+              )}
             </div>
           </div>
         </div>

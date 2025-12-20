@@ -135,13 +135,16 @@ export default function Home() {
 
               <div className="pt-6 border-t border-neo-teal/20">
                 <div className="grid grid-cols-4 gap-6">
-                  <div className="text-center">
+                  <div className="text-center py-12">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="w-4 h-4 rounded-full"></div>
+                    </div>
                     <div className="text-5xl font-bold text-neo-teal mb-2">
                       {stats?.totals?.total || 0}
                     </div>
                     <div className="text-sm text-gray-400">Total pNodes</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center py-12">
                     <div className="flex items-center justify-center mb-3">
                       <div
                         className="w-4 h-4 rounded-full bg-neo-teal"
@@ -156,7 +159,7 @@ export default function Home() {
                     </div>
                     <div className="text-sm text-gray-400">Healthy</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center py-12">
                     <div className="flex items-center justify-center mb-3">
                       <div
                         className="w-4 h-4 rounded-full bg-neo-teal"
@@ -171,7 +174,7 @@ export default function Home() {
                     </div>
                     <div className="text-sm text-gray-400">Degraded</div>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center py-12">
                     <div className="flex items-center justify-center mb-3">
                       <div
                         className="w-4 h-4 rounded-full bg-neo-teal"
