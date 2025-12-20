@@ -4,11 +4,11 @@
 
 A real-time analytics dashboard for monitoring the Xandeum storage network (pNodes). Built with Next.js 16, TypeScript, and D3.js, featuring interactive 3D globe visualization and comprehensive network health monitoring.
 
-🔗 **Live Demo**: [xandeum-analytics-lime.vercel.app](https://xandeum-analytics-lime.vercel.app)
+**Live Demo**: [xandeum-analytics-lime.vercel.app](https://xandeum-analytics-lime.vercel.app)
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#features)
 - [Tech Stack](#tech-stack)
@@ -22,9 +22,9 @@ A real-time analytics dashboard for monitoring the Xandeum storage network (pNod
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎯 Core Features
+### Core Features
 
 - **Real-Time Network Monitoring**: Track 200+ pNodes across the Xandeum network
 - **Interactive 3D Globe**: Visualize global node distribution with D3.js canvas rendering
@@ -36,53 +36,10 @@ A real-time analytics dashboard for monitoring the Xandeum storage network (pNod
   - Network activity (packets sent/received)
   - Uptime tracking
   - Geolocation data
-
-### 🎨 UI/UX Features
-
-- **Neo-Teal Design System**: Cohesive color scheme with space-themed aesthetics
-- **Responsive Layout**: Works seamlessly on desktop and mobile devices
-- **Smart Popups**: Context-aware positioning that adapts to screen boundaries
-- **Auto-Refresh**: Live data updates every 60 seconds
-- **Interactive Elements**: Click-to-explore globe markers with detailed node information
-- **Navigation Drawer**: Smooth sidebar with real-time node count
-
-### 🚀 Performance
-
-- **Client-Side Rendering**: Fast initial load with dynamic data fetching
-- **Optimized 3D Rendering**: 60 FPS globe rotation using requestAnimationFrame
-- **Rate Limit Protection**: Smart batching of geolocation API calls
-- **Caching Strategy**: Server-side caching for frequently accessed data
-- **Lazy Loading**: Progressive loading of node markers (limited to 50 for optimal performance)
-
+  
 ---
 
-## 🛠️ Tech Stack
-
-### Frontend
-
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **3D Visualization**: D3.js with Canvas rendering
-- **Icons**: Lucide React
-- **Animations**: CSS transitions and keyframes
-
-### Backend
-
-- **Runtime**: Node.js
-- **API Protocol**: JSON-RPC 2.0 over HTTP
-- **Geolocation**: IP-API.com (free tier, 45 req/min)
-- **Data Source**: Xandeum pNode RPC endpoints (port 6000)
-
-### Infrastructure
-
-- **Hosting**: Vercel (Serverless)
-- **Environment**: Automatic VERCEL_URL injection
-- **Build System**: Turbopack (Next.js 16)
-
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -138,7 +95,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 xandeum-analytics/
@@ -180,7 +137,7 @@ xandeum-analytics/
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 ### Internal API Endpoints
 
@@ -311,7 +268,7 @@ curl -X POST http://173.212.207.32:6000/rpc \
 
 ---
 
-## 🌐 Deployment
+## Deployment
 
 ### Deploy to Vercel (Recommended)
 
@@ -328,31 +285,7 @@ curl -X POST http://173.212.207.32:6000/rpc \
    - Every push to `main` triggers a new deployment
    - Preview deployments for pull requests
 
-### Deploy to Other Platforms
-
-#### Netlify
-
-```bash
-npm run build
-# Upload .next folder
-```
-
-#### Self-Hosted
-
-```bash
-npm run build
-npm run start
-```
-
-**Requirements:**
-
-- Node.js 18+
-- Port 3000 (configurable)
-- Internet access to pNode RPC endpoints
-
----
-
-## 📖 Usage Guide
+## Usage Guide
 
 ### Dashboard
 
@@ -427,67 +360,7 @@ Click any node to view comprehensive statistics:
 
 ---
 
-## 🎨 Design System
-
-### Color Palette
-
-```css
-/* Primary Colors */
---neo-teal: #14F1C6;      /* Primary accent */
---space-dark: #0a0e27;    /* Background */
---space-card: #1a1f3a;    /* Card background */
---space-border: #2a3155;  /* Borders */
-
-/* Health Status Colors (Opacity-based) */
---healthy: #14F1C6 (opacity: 1.0)
---degraded: #14F1C6 (opacity: 0.5)
---offline: #14F1C6 (opacity: 0.2)
-```
-
-### Typography
-
-- **Font Family**: System fonts (SF Pro, Segoe UI, Roboto)
-- **Monospace**: For code, IPs, addresses
-
-### Components
-
-- **Cards**: `bg-space-card/80 backdrop-blur rounded-lg border border-space-border`
-- **Buttons**: `bg-neo-teal text-space-dark hover:scale-105`
-- **Tables**: Striped rows with hover effects
-
----
-
-## 🔧 Configuration
-
-### Tailwind Config
-
-Custom colors and utilities are defined in `tailwind.config.ts`:
-
-```typescript
-colors: {
-  'neo-teal': '#14F1C6',
-  'space-dark': '#0a0e27',
-  'space-card': '#1a1f3a',
-  'space-border': '#2a3155',
-}
-```
-
-### pNode Seed List
-
-Edit `lib/pnode-client.ts` to update seed nodes:
-
-```typescript
-const SEED_PNODES = [
-  "173.212.203.145",
-  "173.212.220.65",
-  "161.97.97.41",
-  // Add more seed nodes
-];
-```
-
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -520,7 +393,7 @@ Check browser console (F12) for detailed logs.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -540,50 +413,9 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
+## Contact
 
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-- **Xandeum Network**: For providing the pNode infrastructure
-- **Vercel**: For excellent hosting and deployment
-- **D3.js**: For powerful data visualization capabilities
-- **Next.js Team**: For the amazing framework
-
----
-
-## 📞 Contact
-
-**Developer**: Prakhar  
+**Developer**: Prakhar Sharma 
 **GitHub**: [@AtoMicKraK1n](https://github.com/AtoMicKraK1n)  
 **Live Demo**: [xandeum-analytics-lime.vercel.app](https://xandeum-analytics-lime.vercel.app)
 
----
-
-## 🎯 Bounty Submission
-
-This project was developed as part of the Xandeum Storage Network monitoring bounty competition.
-
-**Deliverables:**
-
-- ✅ Live, functional website
-- ✅ Complete GitHub repository with source code
-- ✅ Comprehensive documentation (this README)
-- ✅ Deployment instructions
-- ✅ Usage guide
-
-**Key Features Delivered:**
-
-- Real-time monitoring of 200+ pNodes
-- Interactive 3D globe visualization
-- Network health scoring system
-- Version distribution analytics
-- Individual node statistics
-- Responsive, modern UI with neo-teal theme
-
----
-
-**Built with ❤️ for the Xandeum Network**
