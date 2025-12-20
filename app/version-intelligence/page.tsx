@@ -1,37 +1,37 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { PageWrapper } from "@/components/PageWrapper";
 import { VersionDistributionChart } from "@/components/VersionDistributionChart";
 import { Package, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
-import { getBaseURL } from "@/lib/api-client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export default function VersionIntelligencePage() {
+  const [stats, setStats] = useState<any>(null);
+  const [pnodes, setPnodes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-async function getNetworkStats() {
-  const baseURL = getBaseURL();
-  const res = await fetch(`${baseURL}/api/network/overview`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [statsRes, pnodesRes] = await Promise.all([
+          fetch("/api/network/overview", { cache: "no-store" }),
+          fetch("/api/pnodes", { cache: "no-store" }),
+        ]);
 
-async function getPNodeList() {
-  const baseURL = getBaseURL();
-  const res = await fetch(`${baseURL}/api/pnodes`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
+        const statsData = await statsRes.json();
+        const pnodesData = await pnodesRes.json();
 
-export default async function VersionIntelligencePage() {
-  const [statsResponse, pnodesResponse] = await Promise.all([
-    getNetworkStats(),
-    getPNodeList(),
-  ]);
+        setStats(statsData?.data);
+        setPnodes(pnodesData?.data || []);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  const stats = statsResponse?.data;
-  const pnodes = pnodesResponse?.data || [];
+    fetchData();
+  }, []);
 
   // Calculate version statistics
   const versionStats = stats?.versions?.distribution || {};
@@ -46,12 +46,31 @@ export default async function VersionIntelligencePage() {
     .map(([version, count]) => ({
       version,
       count: count as number,
-      percentage: (((count as number) / totalNodes) * 100).toFixed(1),
+      percentage:
+        totalNodes > 0
+          ? (((count as number) / totalNodes) * 100).toFixed(1)
+          : "0",
       isLatest: version === latestVersion,
     }));
 
   const nodesOnLatest = sortedVersions.find((v) => v.isLatest)?.count || 0;
-  const adoptionRate = ((nodesOnLatest / totalNodes) * 100).toFixed(1);
+  const adoptionRate =
+    totalNodes > 0 ? ((nodesOnLatest / totalNodes) * 100).toFixed(1) : "0";
+
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="min-h-screen bg-space-dark flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white text-xl">
+              Loading Version Intelligence...
+            </p>
+          </div>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper>
@@ -148,80 +167,90 @@ export default async function VersionIntelligencePage() {
               Version Distribution
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sortedVersions.map((versionData, index) => (
-                <div
-                  key={versionData.version}
-                  className={`relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-105 ${
-                    versionData.isLatest
-                      ? "bg-gradient-to-br from-neo-teal/30 to-neo-teal/10 border-2 border-neo-teal shadow-xl shadow-neo-teal/30"
-                      : "bg-space-card/60 border border-space-border hover:border-neo-teal/40"
-                  }`}
-                >
-                  {/* Rank Badge */}
-                  <div className="absolute top-3 right-3">
-                    <div className="w-8 h-8 rounded-full bg-neo-teal/20 border border-neo-teal/40 flex items-center justify-center">
-                      <span className="text-xs font-bold text-neo-teal">
-                        #{index + 1}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-6">
-                    {/* Version Number */}
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-400 mb-1">Version</div>
-                      <div className="text-2xl font-bold text-white font-mono">
-                        {versionData.version}
-                      </div>
-                    </div>
-
-                    {/* Node Count */}
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-400 mb-2">Nodes</div>
-                      <div className="text-5xl font-bold text-neo-teal mb-2">
-                        {versionData.count}
-                      </div>
-                      <div className="text-sm text-gray-300">
-                        {versionData.percentage}% of network
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="mb-3">
-                      <div className="w-full bg-space-dark rounded-full h-2 overflow-hidden">
-                        <div
-                          className="h-full bg-neo-teal transition-all duration-500 rounded-full"
-                          style={{
-                            width: `${versionData.percentage}%`,
-                            opacity: versionData.isLatest ? 1.0 : 0.6,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Latest Badge */}
-                    {versionData.isLatest && (
-                      <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-neo-teal/30">
-                        <CheckCircle className="w-4 h-4 text-neo-teal" />
-                        <span className="text-sm font-bold text-neo-teal">
-                          ✨ Latest Release
+            {sortedVersions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {sortedVersions.map((versionData, index) => (
+                  <div
+                    key={versionData.version}
+                    className={`relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-105 ${
+                      versionData.isLatest
+                        ? "bg-gradient-to-br from-neo-teal/30 to-neo-teal/10 border-2 border-neo-teal shadow-xl shadow-neo-teal/30"
+                        : "bg-space-card/60 border border-space-border hover:border-neo-teal/40"
+                    }`}
+                  >
+                    {/* Rank Badge */}
+                    <div className="absolute top-3 right-3">
+                      <div className="w-8 h-8 rounded-full bg-neo-teal/20 border border-neo-teal/40 flex items-center justify-center">
+                        <span className="text-xs font-bold text-neo-teal">
+                          #{index + 1}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="p-6">
+                      {/* Version Number */}
+                      <div className="mb-4">
+                        <div className="text-sm text-gray-400 mb-1">
+                          Version
+                        </div>
+                        <div className="text-2xl font-bold text-white font-mono">
+                          {versionData.version}
+                        </div>
+                      </div>
+
+                      {/* Node Count */}
+                      <div className="mb-4">
+                        <div className="text-sm text-gray-400 mb-2">Nodes</div>
+                        <div className="text-5xl font-bold text-neo-teal mb-2">
+                          {versionData.count}
+                        </div>
+                        <div className="text-sm text-gray-300">
+                          {versionData.percentage}% of network
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mb-3">
+                        <div className="w-full bg-space-dark rounded-full h-2 overflow-hidden">
+                          <div
+                            className="h-full bg-neo-teal transition-all duration-500 rounded-full"
+                            style={{
+                              width: `${versionData.percentage}%`,
+                              opacity: versionData.isLatest ? 1.0 : 0.6,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Latest Badge */}
+                      {versionData.isLatest && (
+                        <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-neo-teal/30">
+                          <CheckCircle className="w-4 h-4 text-neo-teal" />
+                          <span className="text-sm font-bold text-neo-teal">
+                            ✨ Latest Release
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Decorative Corner */}
+                    {versionData.isLatest && (
+                      <div className="absolute top-0 left-0 w-20 h-20 bg-neo-teal/10 rounded-br-full" />
                     )}
                   </div>
-
-                  {/* Decorative Corner */}
-                  {versionData.isLatest && (
-                    <div className="absolute top-0 left-0 w-20 h-20 bg-neo-teal/10 rounded-br-full" />
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-400">No version data available</p>
+              </div>
+            )}
           </div>
 
           {/* Visual Chart Section */}
-          <VersionDistributionChart versions={sortedVersions} />
+          {sortedVersions.length > 0 && (
+            <VersionDistributionChart versions={sortedVersions} />
+          )}
         </main>
       </div>
     </PageWrapper>

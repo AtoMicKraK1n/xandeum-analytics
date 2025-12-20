@@ -1,22 +1,41 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { NetworkMap2D } from "@/components/NetworkMap2D";
 import { PageWrapper } from "@/components/PageWrapper";
-import { getBaseURL } from "@/lib/api-client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export default function NetworkMapPage() {
+  const [pnodes, setPnodes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-async function getPNodeList() {
-  const baseURL = getBaseURL();
-  const res = await fetch(`${baseURL}/api/pnodes`, {
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("/api/pnodes", { cache: "no-store" });
+        const data = await res.json();
+        setPnodes(data?.data || []);
+      } catch (error) {
+        console.error("Error fetching pnodes:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-export default async function NetworkMapPage() {
-  const pnodesResponse = await getPNodeList();
-  const pnodes = pnodesResponse?.data || [];
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="min-h-screen bg-space-dark flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white text-xl">Loading Network Map...</p>
+          </div>
+        </div>
+      </PageWrapper>
+    );
+  }
 
   return (
     <PageWrapper>
