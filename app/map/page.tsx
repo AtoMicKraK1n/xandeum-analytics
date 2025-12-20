@@ -1,8 +1,10 @@
 import { NetworkMap2D } from "@/components/NetworkMap2D";
 import { PageWrapper } from "@/components/PageWrapper";
+import { getBaseURL } from "@/lib/api-client";
 
 async function getPNodeList() {
-  const res = await fetch("http://localhost:3000/api/pnodes", {
+  const baseURL = getBaseURL();
+  const res = await fetch(`${baseURL}/api/pnodes`, {
     cache: "no-store",
   });
   if (!res.ok) return null;

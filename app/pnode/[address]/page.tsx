@@ -19,10 +19,12 @@ import {
   LaptopMinimalCheck,
 } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
+import { getBaseURL } from "@/lib/api-client";
 
 async function getPNodeStats(address: string) {
+  const baseURL = getBaseURL();
   const res = await fetch(
-    `http://localhost:3000/api/pnodes/${encodeURIComponent(address)}`,
+    `${baseURL}/api/pnodes/${encodeURIComponent(address)}`,
     { cache: "no-store" }
   );
   if (!res.ok) return null;

@@ -3,9 +3,11 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { PNodesTable } from "@/components/PNodesTable";
 import { Globe3D } from "@/components/Globe3D";
 import { PageWrapper } from "@/components/PageWrapper";
+import { getBaseURL } from "@/lib/api-client";
 
 async function getNetworkStats() {
-  const res = await fetch("http://localhost:3000/api/network/overview", {
+  const baseURL = getBaseURL();
+  const res = await fetch(`${baseURL}/api/network/overview`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
@@ -13,13 +15,13 @@ async function getNetworkStats() {
 }
 
 async function getPNodeList() {
-  const res = await fetch("http://localhost:3000/api/pnodes", {
+  const baseURL = getBaseURL();
+  const res = await fetch(`${baseURL}/api/pnodes`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
   return res.json();
 }
-
 export default async function Home() {
   const [statsResponse, pnodesResponse] = await Promise.all([
     getNetworkStats(),

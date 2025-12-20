@@ -1,9 +1,11 @@
 import { PageWrapper } from "@/components/PageWrapper";
 import { VersionDistributionChart } from "@/components/VersionDistributionChart";
 import { Package, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
+import { getBaseURL } from "@/lib/api-client";
 
 async function getNetworkStats() {
-  const res = await fetch("http://localhost:3000/api/network/overview", {
+  const baseURL = getBaseURL();
+  const res = await fetch(`${baseURL}/api/network/overview`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
@@ -11,7 +13,8 @@ async function getNetworkStats() {
 }
 
 async function getPNodeList() {
-  const res = await fetch("http://localhost:3000/api/pnodes", {
+  const baseURL = getBaseURL();
+  const res = await fetch(`${baseURL}/api/pnodes`, {
     cache: "no-store",
   });
   if (!res.ok) return null;
