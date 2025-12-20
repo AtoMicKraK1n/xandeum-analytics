@@ -4,7 +4,9 @@
 
 A real-time analytics dashboard for monitoring the Xandeum storage network (pNodes). Built with Next.js 16, TypeScript, and D3.js, featuring interactive 3D globe visualization and comprehensive network health monitoring.
 
-**Live Demo**: [xandeum-analytics-lime.vercel.app](https://xandeum-analytics-lime.vercel.app)
+**Live Site**: [xandeum-analytics-lime.vercel.app](https://xandeum-analytics-lime.vercel.app)
+
+**Demo Video**: [Twitter Post](https://x.com/Prakhar158/status/2002430593406308732?s=20)
 
 ---
 
