@@ -1,5 +1,7 @@
-import Link from "next/link";
-import { getNodeHealth } from "@/lib/network-analytics";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import {
   Server,
   ChartColumnBig,
@@ -18,33 +20,16 @@ import {
   Network,
   LaptopMinimalCheck,
 } from "lucide-react";
-import { BackButton } from "@/components/BackButton";
-import { getBaseURL } from "@/lib/api-client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+function getNodeHealth(lastSeenTimestamp: number) {
+  const now = Date.now() / 1000;
+  const diff = now - lastSeenTimestamp;
 
-async function getPNodeStats(address: string) {
-  const baseURL = getBaseURL();
-  const res = await fetch(
-    `${baseURL}/api/pnodes/${encodeURIComponent(address)}`,
-    { cache: "no-store" }
-  );
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function getGeoLocation(ip: string) {
-  try {
-    const res = await fetch(
-      `http://ip-api.com/json/${ip}?fields=status,country,city,regionName,isp,lat,lon,org`
-    );
-    const data = await res.json();
-    if (data.status === "success") return data;
-  } catch (error) {
-    console.error("Geolocation error:", error);
-  }
-  return null;
+  if (diff < 300)
+    return { status: "healthy" as const, opacity: 1.0, text: "Healthy" };
+  if (diff < 3600)
+    return { status: "degraded" as const, opacity: 0.5, text: "Degraded" };
+  return { status: "offline" as const, opacity: 0.2, text: "Offline" };
 }
 
 function formatBytes(bytes: number): string {
@@ -68,34 +53,90 @@ function formatUptime(seconds: number): string {
   return parts.join(" ") || "0m";
 }
 
-export default async function PNodeDetailPage({
-  params,
-}: {
-  params: Promise<{ address: string }>;
-}) {
-  const { address } = await params;
-  const decodedAddress = decodeURIComponent(address);
+export default function PNodeDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [stats, setStats] = useState<any>(null);
+  const [geoData, setGeoData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const response = await getPNodeStats(decodedAddress);
-  const stats = response?.data;
+  const address = decodeURIComponent(params.address as string);
+  const ip = address.split(":")[0];
+  const port = address.split(":")[1] || "9001";
 
-  const ip = decodedAddress.split(":")[0];
-  const port = decodedAddress.split(":")[1] || "9001";
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Fetch node stats
+        const statsRes = await fetch(
+          `/api/pnodes/${encodeURIComponent(address)}`,
+          {
+            cache: "no-store",
+          }
+        );
 
-  // If stats not available, show error state
-  if (!stats) {
+        if (!statsRes.ok) {
+          setError(true);
+          setLoading(false);
+          return;
+        }
+
+        const statsData = await statsRes.json();
+        setStats(statsData?.data);
+
+        // Fetch geolocation
+        try {
+          const geoRes = await fetch(
+            `/api/geolocation?ip=${encodeURIComponent(ip)}`
+          );
+          if (geoRes.ok) {
+            const geoDataRes = await geoRes.json();
+            setGeoData(geoDataRes);
+          }
+        } catch (err) {
+          console.log("Geolocation not available");
+        }
+      } catch (err) {
+        console.error("Error fetching node details:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [address, ip]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-space-dark flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-xl">Loading Node Details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
     return (
       <div className="min-h-screen bg-space-dark flex flex-col">
         {/* Header */}
         <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl">
           <div className="container mx-auto px-4 py-4">
-            <BackButton />
+            <button
+              onClick={() => router.back()}
+              className="text-neo-teal hover:text-neo-teal/80 text-sm mb-2 inline-flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              ← Back to Dashboard
+            </button>
             <div>
               <h1 className="text-2xl font-bold text-white mb-1">
                 Node Details
               </h1>
               <code className="text-gray-400 text-xs bg-space-dark px-2 py-1 rounded border border-space-border">
-                {decodedAddress}
+                {address}
               </code>
             </div>
           </div>
@@ -129,7 +170,7 @@ export default async function PNodeDetailPage({
                       Node Address:
                     </span>
                     <span className="text-white font-mono text-xs">
-                      {decodedAddress}
+                      {address}
                     </span>
                   </div>
                   <div>
@@ -206,12 +247,12 @@ export default async function PNodeDetailPage({
               </div>
 
               <div className="mt-4 text-center">
-                <Link
-                  href="/"
+                <button
+                  onClick={() => router.back()}
                   className="inline-flex items-center gap-2 px-6 py-2.5 bg-neo-teal text-space-dark font-bold rounded-lg hover:scale-105 transition-all text-sm"
                 >
                   ← Back to Dashboard
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -220,8 +261,6 @@ export default async function PNodeDetailPage({
     );
   }
 
-  // Get geolocation
-  const geoData = await getGeoLocation(ip);
   const health = getNodeHealth(stats.last_updated);
 
   return (
@@ -229,12 +268,12 @@ export default async function PNodeDetailPage({
       {/* Header */}
       <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="container mx-auto px-4 py-6">
-          <Link
-            href="/"
-            className="text-neo-teal hover:text-neo-teal/80 text-sm mb-3 inline-flex items-center gap-2 transition-colors"
+          <button
+            onClick={() => router.back()}
+            className="text-neo-teal hover:text-neo-teal/80 text-sm mb-3 inline-flex items-center gap-2 transition-colors cursor-pointer"
           >
             ← Back to Dashboard
-          </Link>
+          </button>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold text-white mb-2">
@@ -242,8 +281,15 @@ export default async function PNodeDetailPage({
               </h1>
               <div className="flex items-center gap-3 flex-wrap">
                 <code className="text-gray-400 text-sm bg-space-dark px-3 py-1 rounded border border-space-border">
-                  {decodedAddress}
+                  {address}
                 </code>
+                <span
+                  className="flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold bg-neo-teal/10 border border-neo-teal/30"
+                  style={{ opacity: health.opacity }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-neo-teal"></span>
+                  {health.text}
+                </span>
               </div>
             </div>
           </div>
@@ -292,7 +338,7 @@ export default async function PNodeDetailPage({
             <div className="space-y-4">
               <InfoRow
                 label="Gossip Address"
-                value={decodedAddress}
+                value={address}
                 icon={<Globe className="w-4 h-4" />}
               />
               <InfoRow
@@ -371,7 +417,7 @@ export default async function PNodeDetailPage({
                 />
                 <InfoRow
                   label="Coordinates"
-                  value={`${geoData.lat}, ${geoData.lon}`}
+                  value={`${geoData.lat}, ${geoData.lng}`}
                   icon={<MapPin className="w-4 h-4" />}
                 />
               </div>
@@ -386,7 +432,7 @@ export default async function PNodeDetailPage({
               </div>
               <div className="text-center py-8">
                 <p className="text-gray-400 text-sm">
-                  Location data unavailable (rate limit or IP lookup failed)
+                  Location data unavailable
                 </p>
               </div>
             </div>
@@ -561,7 +607,7 @@ function StatCard({
     <div className="bg-space-card/80 backdrop-blur rounded-lg p-6 border border-space-border hover:border-neo-teal/30 transition-all hover:scale-105">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-white text-md mb-2">{label}</p>
+          <p className="text-gray-400 text-sm mb-2">{label}</p>
           <p className="text-3xl font-bold text-neo-teal">{value}</p>
         </div>
         <div className="text-neo-teal opacity-60">{icon}</div>
@@ -581,11 +627,11 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-space-border last:border-0">
-      <span className="text-white text-md flex items-center gap-2">
+      <span className="text-gray-400 text-sm flex items-center gap-2">
         <span className="text-neo-teal">{icon}</span>
         {label}
       </span>
-      <span className="text-gray-300 font-mono text-md text-right break-all max-w-[60%]">
+      <span className="text-white font-mono text-sm text-right break-all max-w-[60%]">
         {value}
       </span>
     </div>
