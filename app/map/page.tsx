@@ -2,6 +2,9 @@ import { NetworkMap2D } from "@/components/NetworkMap2D";
 import { PageWrapper } from "@/components/PageWrapper";
 import { getBaseURL } from "@/lib/api-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getPNodeList() {
   const baseURL = getBaseURL();
   const res = await fetch(`${baseURL}/api/pnodes`, {

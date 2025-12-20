@@ -3,6 +3,9 @@ import { VersionDistributionChart } from "@/components/VersionDistributionChart"
 import { Package, TrendingUp, AlertCircle, CheckCircle } from "lucide-react";
 import { getBaseURL } from "@/lib/api-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getNetworkStats() {
   const baseURL = getBaseURL();
   const res = await fetch(`${baseURL}/api/network/overview`, {

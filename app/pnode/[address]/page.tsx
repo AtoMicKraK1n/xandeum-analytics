@@ -21,6 +21,9 @@ import {
 import { BackButton } from "@/components/BackButton";
 import { getBaseURL } from "@/lib/api-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getPNodeStats(address: string) {
   const baseURL = getBaseURL();
   const res = await fetch(

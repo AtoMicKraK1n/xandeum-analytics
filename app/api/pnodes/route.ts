@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { pnodeClient } from "@/lib/pnode-client";
 import type { PNodeInfo, PNodeStats } from "@/types/pnode";
 
+export const dynamic = "force-dynamic";
+
 // Combined type for frontend
 export interface EnrichedPNodeInfo extends PNodeInfo {
   total_bytes?: number;

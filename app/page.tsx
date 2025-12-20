@@ -5,6 +5,9 @@ import { Globe3D } from "@/components/Globe3D";
 import { PageWrapper } from "@/components/PageWrapper";
 import { getBaseURL } from "@/lib/api-client";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getNetworkStats() {
   const baseURL = getBaseURL();
   const res = await fetch(`${baseURL}/api/network/overview`, {
