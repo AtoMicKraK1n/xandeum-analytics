@@ -53,29 +53,6 @@ interface NodeMarker {
   address: string;
 }
 
-// List of public pNode IPs (with port 6000 accessible)
-const PUBLIC_NODE_IPS = [
-  "173.212.207.32",
-  "152.53.236.91",
-  "62.171.138.27",
-  "89.123.115.81",
-  "45.151.122.77",
-  "161.97.185.116",
-  "192.190.136.28",
-  "89.123.115.79",
-  "154.38.171.140",
-  "154.38.170.117",
-  "152.53.155.15",
-  "45.151.122.60",
-  "173.249.3.118",
-  "216.234.134.5",
-  "161.97.97.41",
-  "62.171.135.107",
-  "173.212.220.65",
-  "192.190.136.38",
-  "207.244.255.1",
-];
-
 function getNodeColor(lastSeenTimestamp: number): {
   color: string;
   opacity: number;
@@ -94,30 +71,62 @@ export function Globe3D({ pnodes }: Globe3DProps) {
   const [geolocatedNodes, setGeolocatedNodes] = useState<GeolocatedPNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCount, setActiveCount] = useState(0);
-  const hasInitialized = useRef(false); // Prevent re-initialization
+  const hasInitialized = useRef(false);
 
   const width = 500;
   const height = 500;
 
-  // Fetch geolocation for PUBLIC nodes ONCE
+  // Fetch geolocation for public nodes
   useEffect(() => {
-    if (hasInitialized.current) return; // Already fetched
+    // Reset initialization flag when pnodes change
+    if (pnodes.length === 0) {
+      hasInitialized.current = false;
+      return;
+    }
+
+    if (hasInitialized.current) return;
     hasInitialized.current = true;
 
     const fetchGeolocations = async () => {
       setLoading(true);
 
-      // Filter to only public nodes
+      console.log(`[Globe3D] Starting geolocation for ${pnodes.length} nodes`);
+
+      // Filter to only public nodes (exclude private IPs)
       const publicNodes = pnodes
         .filter((node) => {
           const ip = node.address.split(":")[0];
-          return PUBLIC_NODE_IPS.includes(ip);
+          // Exclude private IP ranges
+          return (
+            !ip.startsWith("192.168.") &&
+            !ip.startsWith("10.") &&
+            !ip.startsWith("172.16.") &&
+            !ip.startsWith("172.17.") &&
+            !ip.startsWith("172.18.") &&
+            !ip.startsWith("172.19.") &&
+            !ip.startsWith("172.20.") &&
+            !ip.startsWith("172.21.") &&
+            !ip.startsWith("172.22.") &&
+            !ip.startsWith("172.23.") &&
+            !ip.startsWith("172.24.") &&
+            !ip.startsWith("172.25.") &&
+            !ip.startsWith("172.26.") &&
+            !ip.startsWith("172.27.") &&
+            !ip.startsWith("172.28.") &&
+            !ip.startsWith("172.29.") &&
+            !ip.startsWith("172.30.") &&
+            !ip.startsWith("172.31.") &&
+            !ip.startsWith("127.")
+          );
         })
-        .sort((a, b) => b.last_seen_timestamp - a.last_seen_timestamp);
+        .sort((a, b) => b.last_seen_timestamp - a.last_seen_timestamp)
+        .slice(0, 40); // Limit to 40 nodes for performance
+
+      console.log(`[Globe3D] Found ${publicNodes.length} public nodes`);
 
       const geolocated: GeolocatedPNode[] = [];
 
-      // Fetch in smaller batches to avoid rate limiting
+      // Fetch in batches to avoid rate limiting
       for (let i = 0; i < publicNodes.length; i += 5) {
         const batch = publicNodes.slice(i, i + 5);
 
@@ -126,21 +135,30 @@ export function Globe3D({ pnodes }: Globe3DProps) {
             const ip = node.address.split(":")[0];
             try {
               const res = await fetch(
-                `http://ip-api.com/json/${ip}?fields=status,lat,lon,city,country`
+                `/api/geolocation?ip=${encodeURIComponent(ip)}`
               );
-              const data = await res.json();
 
-              if (data.status === "success" && data.lat && data.lon) {
-                return {
-                  ...node,
-                  lat: data.lat,
-                  lng: data.lon,
-                  city: data.city,
-                  country: data.country,
-                } as GeolocatedPNode;
+              if (res.ok) {
+                const data = await res.json();
+
+                if (data.lat && data.lng) {
+                  console.log(
+                    `[Globe3D] ✓ Got location for ${ip}: ${data.city}, ${data.country}`
+                  );
+                  return {
+                    ...node,
+                    lat: data.lat,
+                    lng: data.lng,
+                    city: data.city,
+                    country: data.country,
+                  } as GeolocatedPNode;
+                }
               }
             } catch (error) {
-              console.error("Geolocation error:", error);
+              console.error(
+                `[Globe3D] Failed to get location for ${ip}:`,
+                error
+              );
             }
             return null;
           })
@@ -151,16 +169,15 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         );
         geolocated.push(...validNodes);
 
-        // Only update state ONCE at the end, not progressively
-        if (i + 5 >= publicNodes.length) {
-          setGeolocatedNodes(geolocated);
-        }
-
-        // Add delay between batches
-        if (i + 5 < publicNodes.length) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-        }
+        console.log(
+          `[Globe3D] Batch ${i / 5 + 1} complete: ${
+            validNodes.length
+          } locations found`
+        );
       }
+
+      console.log(`[Globe3D] Total geolocated nodes: ${geolocated.length}`);
+      setGeolocatedNodes(geolocated);
 
       const active = geolocated.filter((n) => {
         const diff = Date.now() / 1000 - n.last_seen_timestamp;
@@ -172,11 +189,11 @@ export function Globe3D({ pnodes }: Globe3DProps) {
     };
 
     fetchGeolocations();
-  }, []); // Empty dependency - only run ONCE
+  }, [pnodes]);
 
-  // D3.js Globe Setup - runs ONCE when nodes are ready
+  // D3.js Globe Setup
   useEffect(() => {
-    if (!canvasRef.current || geolocatedNodes.length === 0 || loading) return;
+    if (!canvasRef.current || loading) return;
 
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
@@ -215,6 +232,8 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         address: node.address,
       };
     });
+
+    console.log(`[Globe3D] Rendering ${nodeMarkers.length} markers`);
 
     // Point in polygon helper
     const pointInPolygon = (
@@ -483,7 +502,7 @@ export function Globe3D({ pnodes }: Globe3DProps) {
       rotationTimer.stop();
       canvas.removeEventListener("mousedown", handleMouseDown);
     };
-  }, [geolocatedNodes, loading]); // Only re-run when geolocatedNodes is FINAL
+  }, [geolocatedNodes, loading]);
 
   if (error) {
     return (
@@ -504,7 +523,7 @@ export function Globe3D({ pnodes }: Globe3DProps) {
           <span className="text-sm text-gray-300">
             {loading
               ? "Mapping public nodes..."
-              : `${activeCount} Public Nodes Shown on Globe`}
+              : `${geolocatedNodes.length} Public Nodes Shown on Globe (${activeCount} Active)`}
           </span>
         </div>
       </div>
@@ -513,11 +532,18 @@ export function Globe3D({ pnodes }: Globe3DProps) {
         className="relative bg-black flex items-center justify-center"
         style={{ height: "500px" }}
       >
-        <canvas
-          ref={canvasRef}
-          className="cursor-move touch-none"
-          style={{ width, height }}
-        />
+        {loading ? (
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-neo-teal border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+            <p className="text-gray-400 text-sm">Loading globe...</p>
+          </div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            className="cursor-move touch-none"
+            style={{ width, height }}
+          />
+        )}
       </div>
     </div>
   );
