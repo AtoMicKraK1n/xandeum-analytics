@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
-export function AutoRefresh({ interval = 60000 }: { interval?: number }) {
-  const router = useRouter();
+interface AutoRefreshProps {
+  interval?: number;
+  onRefresh?: () => void;
+}
 
+export function AutoRefresh({ interval = 60000, onRefresh }: AutoRefreshProps) {
   useEffect(() => {
     const timer = setInterval(() => {
-      router.refresh();
+      if (onRefresh) {
+        onRefresh();
+      } else {
+        // Fallback: reload the page
+        window.location.reload();
+      }
     }, interval);
 
     return () => clearInterval(timer);
-  }, [router, interval]);
+  }, [interval, onRefresh]);
 
   return null;
 }

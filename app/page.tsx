@@ -1,17 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { PNodesTable } from "@/components/PNodesTable";
 import { Globe3D } from "@/components/Globe3D";
 import { PageWrapper } from "@/components/PageWrapper";
+import { RefreshCw } from "lucide-react";
+import { RefreshCounter } from "@/components/RefreshCounter";
 
 export default function Home() {
   const [stats, setStats] = useState<any>(null);
   const [pnodes, setPnodes] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
   const [pnodesLoading, setPnodesLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    setIsRefreshing(true);
+
+    try {
+      const [statsPromise, pnodesPromise] = [
+        fetch("/api/network/overview", { cache: "no-store" }),
+        fetch("/api/pnodes", { cache: "no-store" }),
+      ];
+
+      statsPromise
+        .then(async (statsRes) => {
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setStats(statsData?.data);
+          }
+          setStatsLoading(false);
+        })
+        .catch(() => setStatsLoading(false));
+
+      pnodesPromise
+        .then(async (pnodesRes) => {
+          if (pnodesRes.ok) {
+            const pnodesData = await pnodesRes.json();
+            setPnodes(pnodesData?.data || []);
+          }
+          setPnodesLoading(false);
+        })
+        .catch(() => setPnodesLoading(false));
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setStatsLoading(false);
+      setPnodesLoading(false);
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 1000);
+    }
+  }, []);
 
   useEffect(() => {
     // Fetch stats and pnodes in parallel
@@ -59,7 +99,17 @@ export default function Home() {
   return (
     <PageWrapper>
       <div className="min-h-screen bg-space-dark">
-        <AutoRefresh interval={60000} />
+        <AutoRefresh interval={60000} onRefresh={fetchData} />
+
+        {/* Refresh Indicator */}
+        {isRefreshing && (
+          <div className="fixed top-4 right-4 z-50 bg-neo-teal/20 border border-neo-teal rounded-lg px-4 py-2 flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-neo-teal animate-spin" />
+            <span className="text-sm text-neo-teal font-medium">
+              Refreshing data...
+            </span>
+          </div>
+        )}
 
         {/* Header - Shows immediately */}
         <header className="border-b border-space-border bg-space-card/80 backdrop-blur-xl">
@@ -79,6 +129,10 @@ export default function Home() {
                 <h1 className="text-2xl font-bold text-white">
                   Xandeum Analytics
                 </h1>
+                <RefreshCounter
+                  interval={60000}
+                  lastUpdated={stats?.lastUpdated}
+                />
               </div>
             </div>
           </div>
@@ -177,7 +231,9 @@ export default function Home() {
                   ) : (
                     <>
                       <div className="text-center py-12">
-                        <div className="w-4 h-4 rounded-full"></div>
+                        <div className="flex items-center justify-center mb-3">
+                          <div className="w-4 h-4 rounded-full"></div>
+                        </div>
                         <div className="text-5xl font-bold text-neo-teal mb-2">
                           {stats?.totals?.total || 0}
                         </div>
