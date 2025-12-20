@@ -70,7 +70,7 @@ export default function NetworkMapPage() {
             </div>
           ) : (
             <>
-              <Globe3DInteractive pnodes={pnodes} width={700} height={700} />
+              <Globe3DInteractive pnodes={pnodes} width={500} height={600} />
 
               {/* Legend */}
               <div className="mt-6 flex items-center justify-center gap-8">
